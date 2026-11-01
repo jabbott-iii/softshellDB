@@ -1,0 +1,2 @@
+# softshellDB
+Rust nosql database
