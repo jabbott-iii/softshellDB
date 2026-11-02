@@ -21,11 +21,13 @@ and `docs/subsystems/transactions.md` before changing anything.
 - **Never overwrite.** Files are append-only. The WAL and manifest are
   appended to; everything else is written once.
 - **Never acknowledge early.** Under `Sync::Always`, a commit is not visible
-  to readers and `commit()` does not return until its WAL record is synced
-  (ADR-0011).
-- **Sync failures are fatal.** A failed `sync_data` or WAL/manifest write
-  puts the database in the background-error state. Never retry a sync and
-  treat the retry's success as durability.
+  to read transactions and `commit()` does not return until its WAL record
+  is synced (ADR-0011). Write transactions read the last appended commit,
+  synced or not (ADR-0010).
+- **Sync failures are fatal.** A failed `sync_data`, a failed WAL or
+  manifest write, or a failed SST write in a flush or compaction puts the
+  database in the background-error state, and stalled commits fail with
+  it. Never retry a sync and treat the retry's success as durability.
 - **Every file operation goes through `Vfs`.** No `std::fs` calls in
   `storage` or `txn`; otherwise `FaultVfs` cannot crash them.
 - **Recovery is strict.** Only a torn tail of the last WAL segment (or of

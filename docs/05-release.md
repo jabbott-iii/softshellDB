@@ -42,7 +42,9 @@ On-disk formats are versioned separately from the crates (ADR-0021):
 | `IDENTITY` | `SSID` | 1 |
 | SDOC value encoding | version byte | 1 |
 | Series chunk | version byte | 1 |
+| keycode and the value order | none; version recorded in the manifest's `format` record | 1 |
 | Catalog entries | `version` field | 1 |
+| Each model's key layout | `layout` field of its catalog entry | 1 |
 | Wire protocol | handshake `protocol` field | 1 |
 
 Rules:

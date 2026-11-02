@@ -102,7 +102,9 @@ them under `xtask crash --exhaustive`):
 
 - `cargo xtask crash --minutes N [--seed S]` builds a test binary that runs
   a deterministic workload with `Sync::Always` and prints the sequence
-  number of each acknowledged commit on stdout.
+  number of each acknowledged commit on stdout. The workload is a test
+  target of the crate under test (`softshell-storage`, later the facade),
+  built through `cargo` (ADR-0020).
 - The parent kills the child at a random moment (`SIGKILL`, or
   `TerminateProcess` on Windows), reopens the database itself, and checks
   that every acknowledged commit is present and the state is a prefix of
@@ -127,6 +129,13 @@ them under `xtask crash --exhaustive`):
 - `cargo xtask fuzz-smoke [--secs N] [--target NAME]` loads
   `fuzz/corpus/<target>/` seeds. `--secs` is the time per target
   (default 60; CI uses 30).
+- **Where the code lives** (ADR-0020): the driver (corpus loading,
+  mutations, `catch_unwind`, the watchdog, findings) is in
+  `softshell_core::testing`. Each target is a test in the crate that owns
+  its parser, built on that driver. `xtask` keeps a table of target names
+  and their crates and runs each target through `cargo`, passing the time
+  budget and seed in environment variables; it links only `core` and
+  `codec` (ADR-0005).
 - Every seed runs unchanged first. After that each input is a random seed
   with 1 to 16 random mutations: bit flips, byte insert/delete, splice,
   length-field tweaks, "interesting" integers (0, 1, 255, 65535,
@@ -164,6 +173,8 @@ them under `xtask crash --exhaustive`):
   `Error::UnsupportedVersion { format, found, supported }`.
 - `cargo xtask fixtures --new <format>` writes fixtures for the current
   version into a new `v<N>/` directory. It never rewrites a committed one.
+  The writer for each format is in the tests of the crate that owns the
+  format; `xtask` runs it through `cargo` (ADR-0020).
 
 ### Isolation tests
 
@@ -203,7 +214,7 @@ them under `xtask crash --exhaustive`):
 | `cargo xtask deps` | `Cargo.lock` has a package from outside the workspace not pinned in `xtask/deps-allowlist.txt` |
 | `cargo xtask layers` | A crate depends on a crate its row of the dependency matrix does not list, or a workspace crate has no row |
 | `cargo xtask unsafe-audit` | `unsafe` or `#![allow(unsafe_code)]` appears outside `softshell-sys` and `softshell-platform`, or an `unsafe` block lacks a `// SAFETY:` comment |
-| `cargo xtask headers` | A source file lacks the Apache-2.0 header, or has it altered or out of place (ADR-0004) |
+| `cargo xtask headers` | A source file lacks the Apache-2.0 header, or has it altered or out of place (ADR-0004). Source files are Rust files (`*.rs`), scripts (`*.sh`, `*.ps1`, `*.py`), GitHub workflows (`.github/workflows/*.yml`) and the server's sample `softshell.jsonc`. Exempt: Markdown, Cargo manifests and other TOML files, other JSON and JSONC data (`docs/features.jsonc`), other `.github` files, `LICENSE`, `NOTICE`, format fixtures and fuzz corpora |
 | `cargo xtask workflows` | A GitHub workflow uses an action not allowed, pins one by anything but a full commit SHA, or grants its token more than `contents: read` without a comment saying why |
 | `cargo xtask release-no-dev` | A release build of `softshelldb` or `softshell-cli` includes the `dev` or `fault-injection` feature |
 | `cargo xtask features` | A ticked roadmap task belongs to no feature in `docs/features.jsonc`, or a feature's `ticked` list disagrees with the roadmap |

@@ -154,20 +154,22 @@ The rest of the key belongs to the model that owns the keyspace.
 | `2..` | one model each | Allocated by the catalog; never reused after a drop |
 
 A model's own key layout is in its subsystem spec. For example, a document
-collection uses `ks ++ 0x01 ++ keycode(_id)` for documents and
-`ks ++ 0x02 ++ index_id ++ keycode(fields…) ++ keycode(_id)` for index
-entries. Keys within a model are built with `keycode`, the order-preserving
-encoding in `softshell-codec`, so range scans follow value order.
+collection uses `ks ++ 0x01 ++ keycode(_id)` for documents, and each of its
+secondary indexes has a keyspace of its own holding
+`idx_ks ++ 0x01 ++ keycode(fields…) ++ keycode(_id)` entries. Keys within a
+model are built with `keycode`, the order-preserving encoding in
+`softshell-codec`, so range scans follow value order.
 
-Dropping a collection is one catalog write: its keyspace id goes on the
-dropped list, reads stop at once, and compaction removes its keys later
-(ADR-0012).
+Dropping a collection is one catalog write: its keyspace id and those of
+its indexes go on the dropped list, reads stop at once, and compaction
+removes their keys later. Dropping one index works the same way. Keyspace
+ids are never reused (ADR-0012).
 
 ## The write path
 
 ```
 caller ─► db.write(|tx| …) ─► takes the writer lock (one write txn at a time)
-              │ reads: snapshot + own buffered writes (read-your-writes)
+              │ reads: last appended commit + own buffered writes (read-your-writes)
               │ writes: buffered in the txn's WriteBatch; models add their index entries
               ▼
           commit: assign sequence numbers ─► append the batch to the WAL ─► apply to memtable
@@ -181,6 +183,9 @@ caller ─► db.write(|tx| …) ─► takes the writer lock (one write txn at 
 - The writer lock is released before the sync, so the next transaction can
   run while the previous one waits for its sync (commit pipelining). The
   visible sequence advances in commit order, only past synced commits.
+- The next write transaction therefore reads the last appended commit,
+  which may not be synced yet. Read transactions never do (ADR-0010,
+  ADR-0011).
 - Background threads flush full memtables to level-0 SST files and compact
   levels. Each finished file is synced, then installed by a synced manifest
   record.

@@ -16,12 +16,12 @@ dependencies.
 | `sha256` | SHA-256 per FIPS 180-4, used only for API tokens (ADR-0019) |
 | `rng` | `Pcg32` (seedable: `next_u32`, `next_u64`, `next_f64`, `range`, `shuffle`) |
 | `id` | `Id` (128-bit): 48-bit Unix milliseconds + 80 random bits; `IdGenerator` (monotonic within a process); text form is 26 characters of Crockford base32 |
-| `clock` | `Clock` trait, `SystemClock`, `ManualClock` for tests; `Timestamp` (i64 nanoseconds since the Unix epoch, UTC) |
-| `civil` | Unix time ↔ UTC civil date-time (days-to-civil); RFC 3339 formatting and parsing (UTC offsets accepted on input, `Z` on output) |
+| `clock` | `Clock` trait, `SystemClock`, `ManualClock` for tests; `Timestamp` (i64 nanoseconds since the Unix epoch, UTC: 1677-09-21T00:12:43.145224192Z to 2262-04-11T23:47:16.854775807Z, ADR-0013) |
+| `civil` | Unix time ↔ UTC civil date-time (days-to-civil); RFC 3339 formatting and parsing (UTC offsets accepted on input, `Z` on output; a time outside the `Timestamp` range is an error, never clamped) |
 | `log` | Macros `error!`, `warn!`, `info!`, `debug!`, `trace!` with a module target; sinks: none (library default), stderr, rotating file, in-memory ring buffer; level filter per target |
 | `metrics` | `Counter`, `Gauge`, `Histogram` (log-linear buckets, p50/p95/p99) on atomics; a `Registry` that snapshots them |
 | `cli` | Minimal argument parser for `xtask`, the CLI and the bench (`--flag`, `--key value`, positional, subcommands) |
-| `testing` | `check`, `check_sized`, `assert_approx!` (see `docs/04-quality.md`) |
+| `testing` | `check`, `check_sized`, `assert_approx!`, and the fuzz driver that every crate's fuzz targets run on (see `docs/04-quality.md`, ADR-0020) |
 
 ### `Limits`
 
@@ -83,6 +83,8 @@ pub enum Value {
   - NaN equals NaN and sorts after every other number. `-0.0` equals `0.0`.
   - Strings and bytes compare bytewise; arrays and objects
     lexicographically by element (objects by `(key, value)` pairs in order).
+- **Timestamp range:** 1677–2262, the span of an `i64` of nanoseconds
+  (ADR-0013). Extended JSON or RFC 3339 text outside it is an error.
 - **Field names** in stored documents: 1–1,024 bytes of UTF-8, no `.`
   (the path separator), not starting with `$` (reserved for operators and
   extended JSON).

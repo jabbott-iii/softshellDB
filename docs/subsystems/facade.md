@@ -23,6 +23,10 @@ API (ADR-0003).
 - `db.read(|rx| …)` and `db.write(|tx| …)` run a closure in a transaction;
   `write` commits on `Ok` and rolls back on `Err` or panic.
 - `db.begin_read()` / `db.begin_write()` return explicit handles.
+- Inside a write transaction, reads see the last appended commit, which
+  may not be durable yet. Act on what a write closure read only after
+  `write` returns `Ok` (ADR-0010). The rustdoc of `write` and
+  `begin_write` says so.
 - Inside either, model handles are looked up by name:
   `tx.keyspace("kv")?`, `tx.collection("notes")?`, `tx.graph("links")?`,
   `tx.series("activity")?`, `rx.text_index("notes", "body_text")?`,
@@ -31,12 +35,12 @@ API (ADR-0003).
 
 ## The catalog (keyspace 0)
 
-| Entry key (`keycode`) | Value (SDOC, with a `version` field) |
+| Entry key (`keycode`) | Value (SDOC, with a `version` field for the entry's own format and, except in `meta`, a `layout` field for the key-layout version of the data it describes, ADR-0021) |
 | :- | :- |
 | `("meta")` | Catalog version, next keyspace id, dropped keyspaces |
 | `("keyspace", name)` | Keyspace id |
 | `("collection", name)` | Keyspace id, `_id` policy, options |
-| `("index", collection, name)` | Index id, spec, state (`building`, `ready`) |
+| `("index", collection, name)` | Keyspace id, spec, state (`building`, `ready`) |
 | `("text_index", collection, name)` | Keyspace id, fields, analyzer version and options, state |
 | `("vector_index", collection, name)` | Keyspace id, field, dims, metric, kind, seed, state |
 | `("graph", name)` | Keyspace id |
@@ -46,7 +50,9 @@ API (ADR-0003).
   transaction, so it is atomic with any data written alongside it.
 - Names: 1–128 bytes of UTF-8, no control characters (`docs/03-platforms.md`).
 - Keyspace ids are never reused. A drop records the id as dropped; the
-  compaction filter and a maintenance sweep remove its keys.
+  compaction filter and a maintenance sweep remove its keys. Dropping a
+  collection also drops the keyspaces of all its indexes (secondary, text
+  and vector) in the same write (ADR-0012).
 - The catalog is cached in memory and replaced on each committed change.
 
 ## Cross-model glue

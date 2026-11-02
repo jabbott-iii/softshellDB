@@ -14,8 +14,9 @@ OS does with a file (ADR-0005, ADR-0006).
 | macOS 13+ x86_64 | 2 | build, test (when a runner exists) | `FaultVfs` |
 | Windows 10+ x86_64 (MSVC) | 2 | build, test | `FaultVfs`; process kill before release |
 
-- **Tier 1:** every check runs on every pull request; a release is blocked
-  by any failure.
+- **Tier 1:** builds and tests run on every pull request, and Linux x86_64
+  also runs the time-boxed fuzz and process-kill runs; a release is
+  blocked by any failure.
 - **Tier 2:** builds and unit/integration tests run on every pull request;
   the long crash runs happen before each release, on that OS.
 - Linux lands first in every milestone (it is where CI and agents run),

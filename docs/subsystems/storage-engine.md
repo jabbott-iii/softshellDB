@@ -54,6 +54,21 @@ whose sequence is ≤ the snapshot.
 5. If the memtable passed `memtable_bytes`, it becomes immutable, a new WAL
    segment and memtable start, and the flush thread is signalled.
 
+## Background errors
+
+A write or sync error on the WAL or the manifest, or on an SST that a
+flush or compaction is writing, puts the database into the
+background-error state (ADR-0011):
+
+- every commit fails with `Error::Background`, including commits already
+  stalled waiting for a flush;
+- flush and compaction stop;
+- reads continue;
+- a reopen is required. A half-written SST is still in `tmp/` and is
+  removed on the next open.
+
+A failed sync is never retried.
+
 WAL batch payload (little-endian): `sequence u64`, `count u32`, then per
 operation `kind u8`, varint key length, key, and for puts varint value
 length, value.
@@ -119,7 +134,7 @@ On open:
   | `last_sequence` | Highest sequence in any SST |
   | `add_file` | Level, number, size, smallest and largest internal key, sequence range |
   | `delete_file` | Level, number |
-  | `format` | The format versions this database writes |
+  | `format` | The format versions this database writes, keycode's included (ADR-0021) |
 
 - Dropped keyspaces are not recorded here: the facade's catalog holds
   them, and `txn` registers a compaction filter for each on open
@@ -164,8 +179,10 @@ On open:
 | Immutable memtables ≥ `max_immutable_memtables` (2) | Commits wait for a flush |
 
 Each stall's start, end and cause are logged at `info` and counted in
-stats. A stall never fails a commit; a commit that waits longer than
-`stall_timeout` (default none) fails with `Error::Stalled`.
+stats. A stall alone never fails a commit; a commit that waits longer than
+`stall_timeout` (default none) fails with `Error::Stalled`, and a stalled
+commit fails with `Error::Background` if a background error occurs while
+it waits.
 
 ## Reads
 

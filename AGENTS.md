@@ -75,8 +75,9 @@ exist yet: check before assuming any of them does.
    - Files are written, synced, renamed into place, the directory synced,
      and only then referenced by a synced manifest record. Nothing is ever
      overwritten in place.
-   - A sync or write error on the WAL or manifest stops writes; never retry
-     a failed sync and report success.
+   - A sync or write error on the WAL, the manifest, or an SST being
+     flushed or compacted stops writes (ADR-0011); never retry a failed
+     sync and report success.
    - Every change to `storage`, `txn` or `platform` keeps the crash-point
      test passing, and new file operations get crash coverage.
 6. **Hostile input never panics.** Every byte read from disk or the network

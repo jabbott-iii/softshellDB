@@ -22,7 +22,7 @@ How to use this file:
 
 ## Before M0 — Design review (the user)
 
-- [ ] **D0.1 — Review the proposed ADRs**
+- [x] **D0.1 — Review the proposed ADRs**
   - Depends: —
   - Do: the user reads ADR-0004 to ADR-0021 in `docs/decisions.md` and,
     for each, accepts it, asks for an amendment, or rejects it. An agent
@@ -38,6 +38,29 @@ How to use this file:
   - Verify: compare M0's `Decisions` line with the ADR statuses;
     `grep -c '^- \*\*Status:\*\* Proposed$' docs/decisions.md` gives the
     number still open (the template line does not match)
+  - Note: decided by the user on 2026-11-01. All 18 accepted, none
+    deferred. Accepted as written: ADR-0004, 0006, 0007, 0008, 0009, 0014,
+    0015, 0016, 0017, 0018 and 0019. Amended in place before acceptance
+    (the user chose this over `/record-decision`, since none had been
+    accepted), after an agent review found gaps:
+    - ADR-0005, ADR-0020: `xtask` may link only `core` and `codec`, so fuzz
+      targets, fixture writers and crash workloads live in the tests of
+      the crate they exercise, on a fuzz driver in `softshell_core::testing`;
+      `xtask` runs them through `cargo`.
+    - ADR-0010, ADR-0011: a write transaction reads the last appended
+      commit, which may not be synced yet. Pipelining is kept, and this is
+      documented: act on reads from a write transaction only after it
+      commits.
+    - ADR-0011: a failed SST write or sync in a flush or compaction also
+      enters the background-error state, so a full disk fails commits
+      instead of stalling them forever.
+    - ADR-0012: every secondary index has its own keyspace, so dropping an
+      index is an ordinary keyspace drop and never-reused ids rule out
+      stale entries.
+    - ADR-0013: `Timestamp` stays `i64` nanoseconds; its 1677–2262 range is
+      stated, and input outside it is an error.
+    - ADR-0021: keycode's version is recorded in the manifest's `format`
+      record, and each catalog entry records its key-layout version.
 
 ---
 
@@ -116,6 +139,8 @@ enforced by tooling from day one.
       `ManualClock`); text form round-trips.
     - `civil` matches known timestamps, including leap years, 1970,
       2038 and negative times.
+    - RFC 3339 parsing accepts both ends of the `Timestamp` range and
+      rejects a time one nanosecond outside either (ADR-0013).
     - Log file rotation works in a temporary directory under `target/`.
     - A failing `check` prints a reproducible seed; `check_sized` shrinks
       by size.
@@ -151,13 +176,19 @@ enforced by tooling from day one.
       header. Record each demonstration in a task note.
   - Verify: `cargo xtask ci`, plus the demonstrations
 
-- [ ] **M0.7 — xtask: fuzz smoke harness**
+- [ ] **M0.7 — core + xtask: fuzz smoke harness**
   - Depends: M0.6
-  - Do: `cargo xtask fuzz-smoke` per `docs/04-quality.md`: corpus loading,
-    mutations, `catch_unwind`, the 2 s watchdog, findings directory,
-    seeded and reproducible. Register the `json` target with a seed corpus
-    in `fuzz/corpus/json/`. Also `cargo xtask fixtures --new <format>`
-    (`docs/04-quality.md`, "Format fixtures"), which M2.1 first uses.
+  - Do: per `docs/04-quality.md` and ADR-0020:
+    - the fuzz driver in `softshell_core::testing`: corpus loading,
+      mutations, `catch_unwind`, the 2 s watchdog, findings directory,
+      seeded and reproducible;
+    - the `json` target as a test in `softshell-codec`, with a seed corpus
+      in `fuzz/corpus/json/`;
+    - `cargo xtask fuzz-smoke`, which runs registered targets through
+      `cargo`;
+    - `cargo xtask fixtures --new <format>` (`docs/04-quality.md`, "Format
+      fixtures"), which runs the owning crate's fixture writer through
+      `cargo`. M2.1 first uses it.
   - Accept:
     - `--secs 60 --target json` runs clean.
     - A planted panic in a scratch copy is found, saved once, and the run
@@ -332,6 +363,11 @@ crash tests before any compaction exists.
     - A reader iterating an old root sees no change while the writer
       publishes 10,000 new roots.
   - Verify: `cargo test -p softshell-storage`
+  - Note (D0.1 review, ADR-0009): a reader holding an old root keeps every
+    node replaced since then alive, so counting bytes per commit
+    understates memory while long readers exist. Decide how that memory
+    is bounded or accounted. Series ingest (M8.6, ≥ 1M points/s, about
+    1 µs per insert) will be this design's hardest load.
 
 - [ ] **M3.3 — storage: the write path, group commit and snapshots**
   - Depends: M3.1, M3.2, M1.5
@@ -374,6 +410,9 @@ crash tests before any compaction exists.
     - Files are written, synced, renamed, the directory synced, and only
       then referenced (a test asserts the `FaultVfs` operation order).
     - Manifest rollover at a small configured size works.
+    - A failed SST write or sync during a flush puts the database in the
+      background-error state, and a commit stalled behind the flush fails
+      with `Error::Background` instead of waiting (ADR-0011).
     - Fixtures in `tests/fixtures/manifest/v1/` and `tests/fixtures/wal/v1/`.
   - Verify: `cargo test -p softshell-storage`;
     `cargo xtask fuzz-smoke --target manifest_edit --secs 60`
@@ -424,6 +463,8 @@ Linux; no acknowledged commit has ever been lost in testing.
     - Long random workloads keep L1+ non-overlapping (checked after every
       install under `dev`).
     - Snapshots keep their versions through compaction.
+    - A failed output write or sync during a compaction puts the database
+      in the background-error state (ADR-0011).
   - Verify: `cargo test -p softshell-storage --features dev`;
     `cargo xtask crash --exhaustive`
 
@@ -495,6 +536,11 @@ amplification under budget.
   - Accept: scans never cross a keyspace boundary (property test on
     adjacent ids, including `u32::MAX`).
   - Verify: `cargo test -p softshell-txn`
+  - Note (D0.1 review, ADR-0005): `txn` may not depend on
+    `softshell-platform`, so `open_in_memory` and the M5.3 tests that use
+    `FaultVfs` must reach both through `softshell-storage` (for example a
+    re-export, with `storage` passing the `fault-injection` feature
+    through). Settle this before writing `open_in_memory`.
 
 - [ ] **M5.2 — txn: write transactions**
   - Depends: M5.1
@@ -594,7 +640,9 @@ transactions, documented with a runnable example.
     create and drop; index builds in `building` state, resumed after a
     crash; collection checks in `db.check()`; fuzz target `catalog_entry`.
   - Accept: a crash during an index build resumes and completes; `check`
-    finds a deliberately removed index entry.
+    finds a deliberately removed index entry; an index dropped and
+    re-created under the same name never returns the old entries, and
+    dropping a collection drops its index keyspaces (ADR-0012).
   - Verify: `cargo test -p softshelldb`;
     `cargo xtask fuzz-smoke --target catalog_entry --secs 60`
 
@@ -789,6 +837,11 @@ search.
   - Accept: recall@10 ≥ 0.95 on the 5k × 32 test set at the default `ef`;
     deterministic builds.
   - Verify: `cargo test -p softshell-vector`
+  - Note (D0.1 review, ADR-0017): every node a search visits is a
+    key-value read. A rough estimate at 100k × 128 is about 2,000 reads
+    per query, or 4–10 ms against the 5 ms budget measured in M10.4, before
+    any distance math. Plan a bounded cache of decoded nodes here rather
+    than discovering the miss in M10.4.
 
 - [ ] **M10.3 — vector: deletes and rebuilds**
   - Depends: M10.2, M5.5
@@ -852,6 +905,10 @@ transaction, and Tidepool.
   - Accept: the bind-refusal, auth, role, limit and timeout tests pass.
   - Verify: `cargo test -p softshell-server`;
     `cargo xtask fuzz-smoke --target config --secs 60`
+  - Note (D0.1 review, ADR-0018): with the loopback-only rule, the server
+    cannot be reached from outside a container, because a 127.0.0.1 bind
+    is not reachable through a published port. Say so in the server docs;
+    it lasts until M11.7.
 
 - [ ] **M11.4 — server: every operation, cursors and interactive transactions**
   - Depends: M11.3, M7.4, M8.6, M10.5

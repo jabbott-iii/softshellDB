@@ -45,7 +45,7 @@ for entry in rx.prefix(ks, prefix)? { /* … */ }
 
 ```rust
 let mut tx = db.begin_write()?;              // blocks until the writer lock is free
-let old = tx.get(ks, key)?;                  // latest committed state + own writes
+let old = tx.get(ks, key)?;                  // last appended commit + own writes
 tx.put(ks, key, value)?;
 tx.delete(ks, other_key)?;
 tx.commit_with(Sync::Always)?;               // or tx.commit(); dropping it rolls back
@@ -53,9 +53,15 @@ tx.commit_with(Sync::Always)?;               // or tx.commit(); dropping it roll
 
 - One write transaction at a time. `begin_write` waits for the lock;
   `try_begin_write` and `begin_write_timeout(d)` do not wait forever.
-- Reads inside the transaction see the latest committed state plus the
+- Reads inside the transaction see the last appended commit plus the
   transaction's own buffered writes, merged in one iterator, so range
   scans reflect pending puts and deletes.
+- Under commit pipelining, the last appended commit may still be waiting
+  for its sync. Reading the visible (synced) state instead would let this
+  transaction overwrite changes it never saw. A crash can therefore erase
+  a commit this transaction read, and then this transaction too, because
+  the WAL is synced in order. Callers must not act on values read inside a
+  write transaction until its commit returns `Ok` (ADR-0010).
 - Writes are buffered in a `WriteBatch`. A transaction whose buffer passes
   `max_txn_bytes` (default 64 MiB) fails the write with
   `TxnError::TooLarge`; the transaction is then rolled back.

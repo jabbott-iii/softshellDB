@@ -1,12 +1,14 @@
 # Subsystem: `softshell-documents`
 
 Collections of documents with secondary indexes and queries, over one
-keyspace per collection (ADR-0012, ADR-0013, ADR-0014).
+keyspace per collection and one per secondary index (ADR-0012, ADR-0013,
+ADR-0014).
 
 ## Collections and ids
 
 - A collection is a named keyspace plus options, recorded in the catalog
-  by the facade. This crate receives the keyspace and the collection's
+  by the facade. This crate receives the collection's keyspace, the
+  keyspace of each of its secondary indexes, and the collection's
   definition; it does not read the catalog.
 - Every document has an `_id`: an `Id` generated at insert if absent, or
   a caller-supplied `Int`, `String`, `Bytes` or `Id`. Other types are
@@ -14,17 +16,26 @@ keyspace per collection (ADR-0012, ADR-0013, ADR-0014).
 - A document is an `Object`, at most `Limits::max_document_bytes` (16 MiB)
   as SDOC.
 
-## Key layout (inside the collection's keyspace)
+## Key layout
+
+Inside the collection's keyspace:
 
 | Key | Value |
 | :- | :- |
 | `0x01 ++ keycode(_id)` | SDOC document |
-| `0x02 ++ index_id u32 BE ++ keycode(field values…) ++ keycode(_id)` | empty (non-unique index entry) |
-| `0x03 ++ index_id u32 BE ++ keycode(field values…)` | `keycode(_id)` (unique index entry) |
-| `0x04 ++ "stats"` | Document count and total bytes (maintained in each write) |
+| `0x02 ++ "stats"` | Document count and total bytes (maintained in each write) |
+
+Inside each secondary index's own keyspace:
+
+| Key | Value |
+| :- | :- |
+| `0x01 ++ keycode(field values…) ++ keycode(_id)` | empty (non-unique index entry) |
+| `0x02 ++ keycode(field values…)` | `keycode(_id)` (unique index entry) |
 
 Index entries hold no copy of the document; a query reads the document by
-`_id` (covered queries are in the backlog).
+`_id` (covered queries are in the backlog). Dropping an index drops its
+keyspace; keyspace ids are never reused, so a new index never sees a
+dropped index's entries (ADR-0012).
 
 ## Indexes
 

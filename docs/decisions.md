@@ -5,9 +5,12 @@ does this for you. Never edit an accepted ADR's decision. Supersede it with a
 new ADR and set the old one's status to `Superseded by ADR-NNNN`.
 
 An ADR is `Accepted` only when the user made or approved the decision. The
-initial design (ADR-0004 to ADR-0021) is `Proposed`: the user accepts,
-amends or rejects each one before the milestone that relies on it starts
-(`docs/roadmap.md`: task D0.1 and each milestone's `Decisions` line).
+initial design (ADR-0004 to ADR-0021) was proposed with the roadmap and
+reviewed by the user in task D0.1 (`docs/roadmap.md`) on 2026-11-01. All
+eighteen were accepted. ADR-0005, ADR-0010, ADR-0011, ADR-0012, ADR-0013,
+ADR-0020 and ADR-0021 were amended in that review before acceptance, in
+place, because none had been accepted yet; the D0.1 note lists what
+changed.
 
 ```markdown
 ## ADR-NNNN — <title>
@@ -104,7 +107,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0004 — Apache-2.0 header on every source file; NOTICE at the root
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** The repository's `LICENSE` is Apache-2.0. Its appendix
   recommends a header in each file, and its section 4(d) carries `NOTICE`
@@ -128,7 +131,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0005 — Layered crates; `unsafe` and OS code in two crates only
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** A database spans byte formats, OS durability, a storage
   engine, five models and a server. Without enforced layering, models reach
@@ -147,6 +150,9 @@ amends or rejects each one before the milestone that relies on it starts
     at some cost in speed.
   - Hardware CRC and SIMD distance kernels need a superseding ADR that
     names the crate allowed to hold them.
+  - `xtask` links only `core` and `codec`. Tooling that must exercise a
+    higher crate (fuzz targets, fixture writers, crash workloads) lives in
+    that crate's tests, and `xtask` runs it through `cargo` (ADR-0020).
 - **Alternatives considered:** `unsafe` allowed in `storage` for the
   memtable and cache; rejected while safe designs meet the budgets.
 - **Revisit when:** a profile shows a safe structure missing a budget by
@@ -154,7 +160,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0006 — Targets: Linux, macOS and Windows, 64-bit; local filesystems only
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Durability semantics differ by OS and filesystem; each
   target multiplies the crash-test matrix.
@@ -173,7 +179,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0007 — Storage engine: a log-structured merge tree with leveled compaction
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:**
   - Time-series ingest, inverted-index postings and graph edges are
@@ -208,7 +214,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0008 — No mmap: positional reads through our own block cache
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Memory-mapped files hand eviction, read-ahead and error
   handling to the OS. An I/O error on a mapped page is a signal, not a
@@ -226,7 +232,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0009 — Memtable: a persistent copy-on-write B-tree in safe Rust
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Readers must iterate the memtable while the writer inserts.
   The usual answer, a lock-free arena skiplist, needs `unsafe`, which
@@ -246,7 +252,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0010 — Transactions: one writer at a time, snapshot readers, serializable
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Multi-writer concurrency control (OCC, SSI, locking) is a
   large source of subtle bugs. Every model's index maintenance (document
@@ -254,7 +260,9 @@ amends or rejects each one before the milestone that relies on it starts
   shared keys, which would conflict constantly under OCC.
 - **Decision:**
   - At most one write transaction runs at a time (a writer lock). It reads
-    the latest committed state plus its own buffered writes.
+    the last appended commit plus its own buffered writes. Under commit
+    pipelining that commit may not be synced yet; reading only synced
+    commits instead would let a writer overwrite changes it never saw.
   - Read transactions run concurrently on a snapshot (a sequence number)
     and never block or are blocked.
   - The result is serializable: writes run in a serial order and each read
@@ -269,6 +277,11 @@ amends or rejects each one before the milestone that relies on it starts
     are simple.
   - Write throughput is bounded by one core; long write transactions delay
     all other writers.
+  - A write transaction can read a commit that a crash later erases. The
+    database stays consistent: the WAL is synced in order, so a commit is
+    acknowledged as durable only when every earlier one is. But a caller
+    must not act on values read inside a write transaction until its
+    commit returns `Ok`; the API documentation says so.
 - **Alternatives considered:** optimistic transactions with read-set
   validation (more parallel, but retries and conflicts on every shared
   index key); two-phase locking (deadlocks).
@@ -278,7 +291,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0011 — A commit is visible only after it is durable; sync errors are fatal
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** If a reader can see a commit before its WAL record is synced,
   a crash can erase data a client already acted on. After a failed
@@ -290,20 +303,31 @@ amends or rejects each one before the milestone that relies on it starts
     `d`), `Sync::Never` (the OS decides). The policy can be overridden per
     commit.
   - Under `Sync::Always`, the visible sequence advances past a commit only
-    after its sync. Under the other policies, visibility follows the WAL
-    append, and the documentation says what a crash can lose.
-  - Any sync or write error on the WAL or manifest puts the database into
-    a background-error state: writes fail with `Error::Background`, reads
-    continue, and a reopen is required.
+    after its sync, so read transactions never see an unsynced commit.
+    Under the other policies, visibility follows the WAL append, and the
+    documentation says what a crash can lose.
+  - "Visible" means visible to read transactions. The next write
+    transaction reads the last appended commit, synced or not (ADR-0010).
+  - Any sync or write error on the WAL or manifest, or on an SST that a
+    flush or compaction is writing, puts the database into a
+    background-error state: writes fail with `Error::Background` (commits
+    stalled behind a flush included), background jobs stop, reads
+    continue, and a reopen is required. A half-written SST stays in `tmp/`
+    and is removed on the next open.
 - **Consequences:** a slow disk slows visibility, not correctness; a
-  transient disk error forces a reopen.
+  transient disk error forces a reopen; a full disk stops writes with an
+  error instead of stalling them forever behind a flush that cannot
+  finish.
 - **Alternatives considered:** visible at append (lower latency, but readers
-  see data a crash can erase); retrying failed syncs (unsafe on Linux).
+  see data a crash can erase); retrying failed syncs (unsafe on Linux);
+  retrying a failed flush or compaction with backoff (could ride out a
+  disk that fills and then frees, but writers stall meanwhile, and it adds
+  a second error path to test).
 - **Revisit when:** not expected.
 
 ## ADR-0012 — One tree; keyspaces are prefixes; models are libraries; the facade owns the catalog
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Cross-model transactions need one WAL and one sequence. Each
   model still needs its own key layout and maintenance.
@@ -311,28 +335,37 @@ amends or rejects each one before the milestone that relies on it starts
   - Every key starts with a 4-byte big-endian keyspace id. Keyspace 0 is
     the catalog; 1 holds auth and settings; ids from 2 are allocated by the
     catalog and never reused.
+  - Every collection, graph and series set has its own keyspace, and so
+    does every index on a collection: secondary, text or vector.
   - `documents`, `graph`, `series`, `text` and `vector` are libraries that
-    take a keyspace handle and a transaction. They do not depend on each
+    take keyspace handles and a transaction. They do not depend on each
     other.
   - The facade owns the catalog (names, keyspace ids, index definitions),
     the glue between models (text and vector indexes on document fields,
     hybrid search) and the maintenance thread.
   - Dropping a collection or index is a catalog write that puts its
-    keyspace on a dropped list; a compaction filter removes its keys later.
+    keyspace on a dropped list (a collection's together with all of its
+    indexes'); a compaction filter and the maintenance sweep remove their
+    keys later. Because keyspace ids are never reused, a new index never
+    inherits a dropped index's entries.
 - **Consequences:**
   - One compaction policy for every model at first. Time-series data,
     which prefers time-windowed compaction, shares leveled compaction.
   - Model crates are tested alone against `TxnDb::open_in_memory()`.
+  - One drop mechanism for everything. A collection with n indexes uses
+    n + 1 keyspaces; 32-bit ids leave plenty.
 - **Alternatives considered:** a separate LSM tree per keyspace, like column
   families (per-model compaction, but more files and a shared WAL to
   coordinate); models depending on `documents` directly (simpler glue,
-  but a tangle).
+  but a tangle); secondary indexes inside the collection's keyspace under
+  never-reused index ids, dropped through a list of dropped prefixes
+  (fewer keyspaces, but a second drop mechanism to get right).
 - **Revisit when:** series retention or ingest dominates compaction I/O in a
   profile; then consider per-keyspace trees (backlog).
 
 ## ADR-0013 — The value model, SDOC, keycode, and conversions without serde
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Documents, graph properties, series fields, query documents
   and protocol messages all need one value type, a compact binary form, and
@@ -342,6 +375,10 @@ amends or rejects each one before the milestone that relies on it starts
     `Timestamp` (nanoseconds since the Unix epoch, UTC), `Id` (128-bit),
     `Array`, `Object` (insertion-ordered, duplicate keys rejected),
     `F32Vec` (dense vectors).
+  - A `Timestamp` is an `i64`, so it covers
+    1677-09-21T00:12:43.145224192Z to 2262-04-11T23:47:16.854775807Z.
+    RFC 3339 text or extended JSON outside that range is an error, never
+    clamped.
   - **SDOC**, our binary encoding: a version byte, then tagged values with
     varint lengths; objects and arrays carry their byte length so readers
     can skip them. It is not BSON-compatible.
@@ -356,17 +393,24 @@ amends or rejects each one before the milestone that relies on it starts
     v1).
   - Rust types convert through `ToValue` and `FromValue`; the `record!`
     `macro_rules!` macro implements both for plain structs. No proc macros.
-- **Consequences:** one value model everywhere; index order is portable and
-  stable on disk, so changing it is a format change.
+- **Consequences:**
+  - One value model everywhere; index order is portable and stable on
+    disk, so changing it is a format change.
+  - Nanosecond precision for time-series, at the cost of range: dates
+    before 1677 or after 2262 (including `9999-12-31` "end of time"
+    placeholders) cannot be `Timestamp`s, and callers store them as
+    strings or `Null`. Widening the range later is a format change to
+    SDOC, keycode and series chunks.
 - **Alternatives considered:** BSON (a large spec with deprecated types);
   separate `Int` and `Float` orders like FoundationDB tuples (simpler
   encoding, surprising query results); serde (excluded by ADR-0002).
-- **Revisit when:** locale-aware collation is required, or the `record!`
-  macro cannot express more than three needed type shapes.
+- **Revisit when:** locale-aware collation is required, the `record!`
+  macro cannot express more than three needed type shapes, or a user needs
+  timestamps outside 1677–2262.
 
 ## ADR-0014 — Query documents parsed into a typed AST; a rule-based planner
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Callers need to filter documents from Rust and over the
   network. MongoDB-style query documents are familiar, need no grammar of
@@ -389,7 +433,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0015 — Time-series: raw points first, then compressed chunks
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Rewriting a compressed chunk for every point is
   read-modify-write on hot keys. Gorilla-style compression (Pelkonen et
@@ -414,7 +458,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0016 — Full-text: one key per posting, BM25, re-analysis on update
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** A posting list stored as one value is rewritten on every
   document change. An LSM with prefix-compressed blocks stores many small
@@ -440,7 +484,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0017 — Vector search: HNSW stored in the key-value store; the flat index is ground truth
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Vector indexes must be transactional with their documents
   and survive crashes like everything else.
@@ -468,7 +512,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0018 — Server: std threads, our own binary protocol, loopback-only until TLS
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** No async runtime is available (ADR-0002); TLS needs a
   specialist dependency we have not evaluated.
@@ -495,7 +539,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0019 — Authentication with hashed random API tokens; SHA-256 built in-house for that only
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Passwords need a slow KDF (a crypto dependency, criterion 2).
   Random tokens of 256 bits need only a fast hash to be stored safely.
@@ -518,7 +562,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0020 — Testing: a fault-injecting VFS, process kills, our own fuzzer
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Crash-consistency bugs are rare, silent and catastrophic.
   Ordinary tests never crash mid-write.
@@ -529,6 +573,11 @@ amends or rejects each one before the milestone that relies on it starts
   - `xtask crash` kills a real child process at random moments and checks
     every acknowledged commit.
   - Every decoder has a fuzz target in our own mutation fuzzer.
+  - The fuzz driver (mutations, `catch_unwind`, the hang watchdog,
+    findings) lives in `softshell_core::testing`. Fuzz targets, fixture
+    writers and crash workloads live in the tests of the crate whose code
+    they exercise. `xtask` runs them as `cargo` subprocesses and links
+    nothing beyond `core` and `codec` (ADR-0005).
   - Model-based tests compare each stateful component with a simple model.
   - Details in `docs/04-quality.md`.
 - **Consequences:** test infrastructure is a large share of the code; the
@@ -541,7 +590,7 @@ amends or rejects each one before the milestone that relies on it starts
 
 ## ADR-0021 — Every on-disk format and the protocol are versioned; fixtures of every version are kept
 
-- **Status:** Proposed
+- **Status:** Accepted (user decision, 2026-11-01)
 - **Date:** 2026-11-01
 - **Context:** Before 1.0, formats will change often. Data written by an
   older build must never be misread by a newer one.
@@ -552,7 +601,12 @@ amends or rejects each one before the milestone that relies on it starts
   - Every format change bumps the version and adds fixtures in
     `tests/fixtures/<format>/v<N>/`; old versions are read or rejected with
     `UnsupportedVersion`.
-  - The manifest records the format versions a database uses.
+  - The manifest records the format versions a database uses, keycode's
+    included: every index key depends on its byte order, so it is
+    versioned like a file format even though it has no header of its own.
+  - Each catalog entry records the key-layout version of the model data it
+    describes, so a change to a model's key layout is detected per
+    collection, index, graph or series set.
 - **Consequences:** a little ceremony per format change, enforced by
   `/change-on-disk-format` and `.claude/rules/on-disk-formats.md`.
 - **Alternatives considered:** no compatibility before 1.0 (simpler, but
