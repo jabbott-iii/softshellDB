@@ -20,6 +20,10 @@
 //! Specified in `docs/subsystems/core-and-codec.md`.
 
 pub mod bytes;
+pub mod crc32c;
 pub mod error;
+pub mod hash;
 pub mod limits;
+pub mod rng;
+pub mod sha256;
 pub mod varint;

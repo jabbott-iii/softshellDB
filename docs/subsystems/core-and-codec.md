@@ -11,10 +11,10 @@ dependencies.
 | `limits` | `Limits` (below), passed to every decoder |
 | `bytes` | `ByteReader`: a cursor over `&[u8]` whose every read is checked, never panics, never allocates and leaves the reader unchanged on error; little-endian and big-endian fixed-width reads; `sub_reader` and `split_tail` split off readers that keep absolute offsets (`with_base`); `check_count` for fixed-width counts. `ByteWriter` |
 | `varint` | LEB128 `u32`/`u64` and zigzag `i64`. Decoding rejects overlong, overflowing and non-minimal encodings, so each value has one encoding. `read_at_most` checks a declared size against a limit; `read_len` and `read_count` also check it against the input, for bytes or items that start right after the varint. A checked count bounds the items the input holds, not memory: nested decoders cap what they preallocate |
-| `crc32c` | CRC-32C (Castagnoli), table-driven slicing-by-8; `mask`/`unmask` for stored checksums (a checksum of data that contains checksums stays strong) |
-| `hash` | `fnv1a64` (stable, may be persisted); `FastHasher` with `FastHashMap`/`FastHashSet` (deterministic per target, never persisted) |
-| `sha256` | SHA-256 per FIPS 180-4, used only for API tokens (ADR-0019) |
-| `rng` | `Pcg32` (seedable: `next_u32`, `next_u64`, `next_f64`, `range`, `shuffle`) |
+| `crc32c` | CRC-32C (Castagnoli), table-driven slicing-by-8; `extend` continues a CRC over more bytes; `mask`/`unmask` for stored checksums (a checksum of data that contains checksums stays strong) |
+| `hash` | `fnv1a64` (stable, may be persisted); `FastHasher` with `FastHashMap`/`FastHashSet` (deterministic, never persisted, not resistant to deliberate collisions) |
+| `sha256` | SHA-256 per FIPS 180-4, one-shot, used only for API tokens (ADR-0019) |
+| `rng` | `Pcg32` (PCG-XSH-RR, seedable with `new(seed, stream)`: `next_u32`, `next_u64`, `next_f64`, unbiased `range`, `shuffle`). Same-seed streams are correlated: independent generators need different, well-mixed seeds |
 | `id` | `Id` (128-bit): 48-bit Unix milliseconds + 80 random bits; `IdGenerator` (monotonic within a process); text form is 26 characters of Crockford base32 |
 | `clock` | `Clock` trait, `SystemClock`, `ManualClock` for tests; `Timestamp` (i64 nanoseconds since the Unix epoch, UTC: 1677-09-21T00:12:43.145224192Z to 2262-04-11T23:47:16.854775807Z, ADR-0013) |
 | `civil` | Unix time ↔ UTC civil date-time (days-to-civil); RFC 3339 formatting and parsing (UTC offsets accepted on input, `Z` on output; a time outside the `Timestamp` range is an error, never clamped) |
@@ -48,8 +48,11 @@ the remaining input, before allocating.
 - `IdGenerator` never issues an id smaller than the previous one, even if
   the wall clock steps back: it keeps the larger timestamp and increments
   the random part.
-- `FastHashMap` iteration order depends only on insertion history on one
-  target. Nothing that reaches disk or a result iterates one.
+- `FastHasher` output is the same on every supported target, but a
+  `FastHashMap`'s iteration order also depends on its whole sequence of
+  operations (capacity, inserts, removals) and on the target and toolchain
+  (`std`'s table layout differs between x86_64 and aarch64). Nothing that
+  reaches disk, a result or a test assertion iterates one.
 
 ## `softshell-codec`
 

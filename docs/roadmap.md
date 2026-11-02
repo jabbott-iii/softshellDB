@@ -150,7 +150,7 @@ enforced by tooling from day one.
     much memory a decoder may reserve. Nested decoders (SDOC, JSON) must
     cap what they preallocate; `bytes` and `varint` say so.
 
-- [ ] **M0.3 — core: CRC32C, hashes, SHA-256, PCG32**
+- [x] **M0.3 — core: CRC32C, hashes, SHA-256, PCG32**
   - Depends: M0.2
   - Do: `crc32c` (slicing-by-8, `mask`/`unmask`), `hash::{fnv1a64,
     FastHasher, FastHashMap, FastHashSet}`, `sha256` (FIPS 180-4), `rng::Pcg32`.
@@ -162,6 +162,24 @@ enforced by tooling from day one.
     - `Pcg32` matches the PCG reference output for a fixed seed.
     - `FastHasher` output is pinned by a test.
   - Verify: `cargo test -p softshell-core`
+  - Note: the NIST vectors (`SHA256ShortMsg.rsp`, `SHA256LongMsg.rsp`, 129
+    vectors) were downloaded with the user's approval on 2026-11-02 and
+    are committed with their source, checksums and terms in
+    `crates/core/tests/vectors/sha256/README.md`; `.gitattributes` keeps
+    their bytes exact.
+  - Note: every pinned value (RFC 3720 CRC-32C vectors, FNV-1a, the
+    `pcg32-demo` output, `FastHasher`, `Pcg32`'s derived outputs, digests
+    of every length 0 to 256) was computed by an independent Python
+    implementation, not taken from the code under test. The SHA-256
+    constants are recomputed from the primes in a test.
+  - Note: an adversarial review (five reviewers, each finding checked by
+    a skeptic) found no wrong output. It found that `str` keys differing
+    only in trailing NUL bytes collided in `FastHasher`, now fixed; that
+    iteration-order and stream-independence claims were too strong, now
+    corrected here and in the code; and seven untested paths, each now
+    caught by a test.
+  - Note: `Pcg32` streams with the same seed are correlated. The M0.4
+    property harness should give each case its own well-mixed seed.
 
 - [ ] **M0.4 — core: ids, clock, civil time, logging, metrics, CLI, test harness**
   - Depends: M0.3

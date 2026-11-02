@@ -1,0 +1,3 @@
+# Third-party test vectors are kept byte for byte (their READMEs list
+# checksums): never convert their line endings.
+crates/core/tests/vectors/** -text
