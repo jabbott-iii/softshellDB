@@ -35,8 +35,9 @@
     {
       "name": "Foundation library",
       "area": "Foundation",
-      "summary": "A dependency-free core will provide checked byte readers, canonical varints, CRC-32C, SHA-256 for token hashing, a seedable PCG32, time-ordered ids, an injectable clock, logging, metrics, a CLI parser and a property-test harness.",
-      "tasks": ["M0.2", "M0.3", "M0.4"]
+      "summary": "A dependency-free core provides checked byte readers and writers that never panic on hostile input, canonical varints, size limits, and decode errors that name the byte offset and what was being done. It will add CRC-32C, SHA-256 for token hashing, a seedable PCG32, time-ordered ids, an injectable clock, logging, metrics, a CLI parser and a property-test harness.",
+      "tasks": ["M0.2", "M0.3", "M0.4"],
+      "ticked": ["M0.2"]
     },
     {
       "name": "JSON and the value model",

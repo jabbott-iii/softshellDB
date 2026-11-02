@@ -18,3 +18,8 @@
 //! the test harness.
 //!
 //! Specified in `docs/subsystems/core-and-codec.md`.
+
+pub mod bytes;
+pub mod error;
+pub mod limits;
+pub mod varint;

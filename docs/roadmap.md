@@ -123,7 +123,7 @@ enforced by tooling from day one.
     each failed `cargo clippy --workspace --all-targets -- -D warnings`; a
     commented `unsafe` block in `softshell-sys` compiled.
 
-- [ ] **M0.2 — core: bytes, varints, errors, limits**
+- [x] **M0.2 — core: bytes, varints, errors, limits**
   - Depends: M0.1
   - Do: `bytes::{ByteReader, ByteWriter}`, `varint` (canonical decoding),
     `error::{CoreError, ErrorContext}`, `limits::Limits` with the defaults
@@ -134,6 +134,21 @@ enforced by tooling from day one.
       encodings are rejected.
     - Every public item has docs.
   - Verify: `cargo test -p softshell-core`
+  - Note: the API came from a design panel (three proposals, three judges,
+    one synthesis) and was then checked by an adversarial review (five
+    reviewers, each finding checked by a skeptic). Beyond the Do line it
+    adds `Context<E>` (made by `ErrorContext`), `Chain`,
+    `ByteReader::{with_base, sub_reader, split_tail, check_count}` and
+    `varint::{read_at_most, read_len, read_count}`.
+  - Note: the review agents reported about 138 million varint checks
+    against an independent reference decoder, and a model-based harness
+    over every `ByteReader` method (nested sub-readers, extreme offsets and
+    sizes) in debug and release builds, with no panic, overflow or
+    disagreement. Five weak spots in the tests they found are fixed; each
+    planted bug is now caught.
+  - Note: a checked count bounds how many items the input holds, not how
+    much memory a decoder may reserve. Nested decoders (SDOC, JSON) must
+    cap what they preallocate; `bytes` and `varint` say so.
 
 - [ ] **M0.3 — core: CRC32C, hashes, SHA-256, PCG32**
   - Depends: M0.2

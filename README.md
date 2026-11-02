@@ -13,9 +13,9 @@ operating system.
 
 ## Status
 
-**Early implementation.** The design is reviewed and the workspace's crates
-exist, but they are still empty. The design, the decisions behind it and
-the task-by-task plan are in [`docs/`](docs):
+**Early implementation.** The design is reviewed and the foundation crate is
+under way; most crates are still empty. The design, the decisions behind it
+and the task-by-task plan are in [`docs/`](docs):
 
 - [`docs/00-overview.md`](docs/00-overview.md): goals, non-goals,
   performance budgets, risks
@@ -26,8 +26,7 @@ the task-by-task plan are in [`docs/`](docs):
 - [`docs/decisions.md`](docs/decisions.md): architecture decision records
 - [`docs/subsystems/`](docs/subsystems): one spec per subsystem
 
-The design review (roadmap task D0.1) and the workspace skeleton (M0.1)
-are done; the foundation crate (M0.2 onward) is next.
+Progress is ticked task by task in [`docs/roadmap.md`](docs/roadmap.md).
 
 ## What it will look like
 

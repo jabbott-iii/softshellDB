@@ -7,10 +7,10 @@ dependencies.
 
 | Module | Provides |
 | :- | :- |
-| `error` | `CoreError`; the `ErrorContext` helper that adds "while doing X" context to any crate's error |
+| `error` | `CoreError`, a leaf enum whose offsets are absolute `u64`s; `Context<E>` and the `ErrorContext` helper that adds "while doing X" context to any crate's error; `Chain`, which prints an error with its `source()` causes. Each error's `Display` describes its own layer, and `source()` gives the cause |
 | `limits` | `Limits` (below), passed to every decoder |
-| `bytes` | `ByteReader`: a cursor over `&[u8]` whose every read is checked and returns `Result`; little-endian and big-endian fixed-width reads; `ByteWriter` |
-| `varint` | LEB128 `u32`/`u64` and zigzag `i64`. Decoding rejects overlong and non-minimal encodings, so each value has one encoding |
+| `bytes` | `ByteReader`: a cursor over `&[u8]` whose every read is checked, never panics, never allocates and leaves the reader unchanged on error; little-endian and big-endian fixed-width reads; `sub_reader` and `split_tail` split off readers that keep absolute offsets (`with_base`); `check_count` for fixed-width counts. `ByteWriter` |
+| `varint` | LEB128 `u32`/`u64` and zigzag `i64`. Decoding rejects overlong, overflowing and non-minimal encodings, so each value has one encoding. `read_at_most` checks a declared size against a limit; `read_len` and `read_count` also check it against the input, for bytes or items that start right after the varint. A checked count bounds the items the input holds, not memory: nested decoders cap what they preallocate |
 | `crc32c` | CRC-32C (Castagnoli), table-driven slicing-by-8; `mask`/`unmask` for stored checksums (a checksum of data that contains checksums stays strong) |
 | `hash` | `fnv1a64` (stable, may be persisted); `FastHasher` with `FastHashMap`/`FastHashSet` (deterministic per target, never persisted) |
 | `sha256` | SHA-256 per FIPS 180-4, used only for API tokens (ADR-0019) |
