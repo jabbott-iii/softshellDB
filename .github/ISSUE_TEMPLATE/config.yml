@@ -1,0 +1,7 @@
+# Every issue uses the one form, issue.yml, so a maintainer can confirm a
+# change before a pull request (CONTRIBUTING.md, "Contribution workflow").
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/jabbott-iii/softshellDB/security/advisories/new
+    about: Report it privately through GitHub's private vulnerability reporting (see SECURITY.md), never in a public issue.

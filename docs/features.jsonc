@@ -1,0 +1,191 @@
+// softshellDB's features, as the README's status section summarizes them.
+//
+// Each feature names the roadmap tasks it needs (`docs/roadmap.md`). A
+// feature is shipped when all of them are ticked, in progress when some
+// are, and planned when none are. `cargo xtask features` (roadmap M0.6),
+// part of `cargo xtask ci`, fails when a ticked `M` task belongs to no
+// feature, or when a feature's `ticked` is not what the roadmap ticks. The
+// design-review task D0.1 belongs to no feature.
+//
+// - `name`: a few words.
+// - `area`: Foundation, Storage, Transactions, Documents, Graph,
+//   Time-series, Search, Server, Tools, Quality or Release.
+// - `summary`: what it does, for a reader who has not seen the code, in a
+//   sentence or three. What the ticked tasks built is in the present tense,
+//   and what is still to come in the future tense. A task that is ticked
+//   rewrites its feature's summary to match.
+// - `tasks`: the roadmap task IDs.
+// - `ticked`: those of `tasks` that were ticked when `summary` was written;
+//   left out when none were.
+{
+  "features": [
+    {
+      "name": "No third-party crates",
+      "area": "Quality",
+      "summary": "softshellDB will be built from this workspace's crates and the Rust standard library alone. The build will fail if the lock file gains a package from outside the workspace, and each crate will use only the crates the architecture's dependency matrix allows.",
+      "tasks": ["M0.1", "M0.6"]
+    },
+    {
+      "name": "Guardrails on every push",
+      "area": "Quality",
+      "summary": "Each push will be formatted, linted with warnings as errors, tested, and checked for dependencies, layering, license headers and unsafe code on Linux, macOS and Windows, with every CI action pinned by commit SHA.",
+      "tasks": ["M0.6", "M0.8"]
+    },
+    {
+      "name": "Foundation library",
+      "area": "Foundation",
+      "summary": "A dependency-free core will provide checked byte readers, canonical varints, CRC-32C, SHA-256 for token hashing, a seedable PCG32, time-ordered ids, an injectable clock, logging, metrics, a CLI parser and a property-test harness.",
+      "tasks": ["M0.2", "M0.3", "M0.4"]
+    },
+    {
+      "name": "JSON and the value model",
+      "area": "Foundation",
+      "summary": "One value type will carry documents, properties, series fields, queries and protocol messages, with a total order across types, JSON and JSONC parsing, extended JSON for ids, timestamps, bytes and vectors, and conversions to and from Rust structs without serde.",
+      "tasks": ["M0.5", "M2.5"]
+    },
+    {
+      "name": "Binary formats",
+      "area": "Foundation",
+      "summary": "Documents will be stored as SDOC, a compact binary encoding; index keys will use an order-preserving encoding whose byte order equals value order; blocks will be compressed with SLZ, our own LZ77 format; and logs will be framed in checksummed blocks that survive torn writes.",
+      "tasks": ["M2.1", "M2.2", "M2.3", "M2.4"]
+    },
+    {
+      "name": "Fuzzed decoders",
+      "area": "Quality",
+      "summary": "Every decoder of bytes from disk or the network will have a target in our own mutation fuzzer, run in CI and for five minutes each before a release, with findings kept as regression seeds.",
+      "tasks": ["M0.7", "M12.1"]
+    },
+    {
+      "name": "Durable files on three OSes",
+      "area": "Storage",
+      "summary": "A virtual filesystem layer will give the engine exact durability semantics on Linux, macOS and Windows: synced data, synced directories, durable renames and exclusive locks, checked by one conformance suite on every OS.",
+      "tasks": ["M1.1", "M1.2", "M1.3", "M1.4"]
+    },
+    {
+      "name": "Crash testing",
+      "area": "Quality",
+      "summary": "A fault-injecting filesystem will simulate power loss at every sync point, tearing the last writes, and a harness will kill real processes mid-write; after each crash, every acknowledged commit must be present and no commit partial.",
+      "tasks": ["M1.5", "M3.7", "M3.8"]
+    },
+    {
+      "name": "Write-ahead log and memtable",
+      "area": "Storage",
+      "summary": "Commits will be appended to a checksummed write-ahead log, shared by group commit, and applied to a copy-on-write memtable that readers iterate without locks; a commit will become visible only once it is durable.",
+      "tasks": ["M3.1", "M3.2", "M3.3"]
+    },
+    {
+      "name": "Sorted tables and recovery",
+      "area": "Storage",
+      "summary": "Memtables will be flushed to immutable sorted tables with bloom filters and prefix-compressed blocks, installed through a manifest log, and recovered on open by replaying the manifest and the log tail.",
+      "tasks": ["M3.4", "M3.5", "M3.6"]
+    },
+    {
+      "name": "Compaction and caches",
+      "area": "Storage",
+      "summary": "Leveled compaction will keep reads and space bounded, with explicit write stalls, a sharded block cache, and compaction filters that remove dropped keyspaces and expired series data.",
+      "tasks": ["M4.1", "M4.2", "M4.3", "M4.4"]
+    },
+    {
+      "name": "Backup and integrity checks",
+      "area": "Storage",
+      "summary": "A consistent checkpoint will copy a live database, and `softshell check` will verify every checksum and invariant, naming the file and offset of any damage; `softshell dump` will decode any file for debugging.",
+      "tasks": ["M4.5", "M4.7"]
+    },
+    {
+      "name": "Benchmarks",
+      "area": "Quality",
+      "summary": "Our own benchmark harness will measure every performance budget on a named reference machine, with seeded datasets and stored baselines.",
+      "tasks": ["M4.6"]
+    },
+    {
+      "name": "Serializable transactions",
+      "area": "Transactions",
+      "summary": "One write transaction at a time will read its own writes and commit atomically across every keyspace, while any number of read transactions see consistent snapshots; the next writer will start while the previous commit waits for its sync.",
+      "tasks": ["M5.1", "M5.2", "M5.3"]
+    },
+    {
+      "name": "Embedded database API",
+      "area": "Transactions",
+      "summary": "Applications will open a directory or an in-memory database, run closures in read and write transactions, use named key-value keyspaces, and let a maintenance thread do background work in short, budgeted transactions.",
+      "tasks": ["M5.4", "M5.5"]
+    },
+    {
+      "name": "Documents and queries",
+      "area": "Documents",
+      "summary": "Collections will store JSON-like documents queried with MongoDB-style query documents: filters, projections, sorts, cursors, update operators, upserts and aggregation pipelines.",
+      "tasks": ["M6.1", "M6.2", "M6.3", "M6.4", "M6.7"]
+    },
+    {
+      "name": "Secondary indexes",
+      "area": "Documents",
+      "summary": "Compound, unique, sparse and multikey indexes will be maintained in the same transaction as each write, built in the background when created on existing data, and chosen by a rule-based planner that explains its choice.",
+      "tasks": ["M6.5", "M6.6"]
+    },
+    {
+      "name": "Command-line tool",
+      "area": "Tools",
+      "summary": "The `softshell` binary will open a database in a REPL and import and export collections as JSON Lines.",
+      "tasks": ["M6.8"]
+    },
+    {
+      "name": "Tidepool reference app",
+      "area": "Tools",
+      "summary": "Tidepool, a command-line notes app, will use every data model in one database: notes as documents, links as a graph, edit activity as time-series, and full-text, similar-note and hybrid search.",
+      "tasks": ["M6.9", "M7.5", "M8.7", "M9.6", "M10.6"]
+    },
+    {
+      "name": "Property graphs",
+      "area": "Graph",
+      "summary": "Graphs will store labeled nodes and directed, labeled edges with properties, answer neighbor queries from adjacency prefixes, and run bounded breadth-first and depth-first traversals and shortest paths.",
+      "tasks": ["M7.1", "M7.2", "M7.3", "M7.4"]
+    },
+    {
+      "name": "Time-series",
+      "area": "Time-series",
+      "summary": "Series identified by a measurement and tags will take points in any order, compress closed buckets Gorilla-style, answer windowed aggregations grouped by tags, and apply retention and rollups.",
+      "tasks": ["M8.1", "M8.2", "M8.3", "M8.4", "M8.5", "M8.6"]
+    },
+    {
+      "name": "Full-text search",
+      "area": "Search",
+      "summary": "Text indexes on document fields will analyze text with Unicode-aware tokenizing, folding, stopwords and English stemming, and answer term, phrase, prefix and boolean queries ranked by BM25.",
+      "tasks": ["M9.1", "M9.2", "M9.3", "M9.4", "M9.5"]
+    },
+    {
+      "name": "Vector search",
+      "area": "Search",
+      "summary": "Vector indexes on document fields will find nearest neighbors exactly or with HNSW, under L2, cosine or dot-product distance, with deletes, rebuilds and filtered search, all inside transactions.",
+      "tasks": ["M10.1", "M10.2", "M10.3", "M10.4"]
+    },
+    {
+      "name": "Hybrid search",
+      "area": "Search",
+      "summary": "One query will combine full-text and vector results on a collection by reciprocal rank fusion, with an optional document filter.",
+      "tasks": ["M10.5"]
+    },
+    {
+      "name": "Network server",
+      "area": "Server",
+      "summary": "A single-node server will expose every operation over our own binary protocol, with sessions, cursors, interactive transactions and strict limits, bound to loopback addresses only, and a Rust client and CLI commands will use it.",
+      "tasks": ["M11.1", "M11.3", "M11.4", "M11.5"]
+    },
+    {
+      "name": "API tokens",
+      "area": "Server",
+      "summary": "Clients will authenticate with random 256-bit tokens, stored only as SHA-256 hashes, each with a read, write or admin role.",
+      "tasks": ["M11.2"]
+    },
+    {
+      "name": "TLS",
+      "area": "Server",
+      "summary": "TLS, and with it binding to non-loopback addresses, will be added only if the dependency evaluation for it is approved.",
+      "tasks": ["M11.6", "M11.7"]
+    },
+    {
+      "name": "Hardened first release",
+      "area": "Release",
+      "summary": "Version 0.1.0 will follow a one-hour soak, crash runs on every OS, complete user documentation, and a tag-triggered release workflow that publishes the crates and the `softshell` binary with checksums.",
+      "tasks": ["M12.2", "M12.3", "M12.4", "M12.5"]
+    }
+  ]
+}

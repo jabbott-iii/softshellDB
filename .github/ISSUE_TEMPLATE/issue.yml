@@ -1,0 +1,117 @@
+name: Issue
+description: Report a bug, propose a feature or change, or ask about softshellDB. One form for every kind of issue.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please search the [existing issues](https://github.com/jabbott-iii/softshellDB/issues?q=is%3Aissue) and the [roadmap](https://github.com/jabbott-iii/softshellDB/blob/main/docs/roadmap.md) first: if one covers this, comment there instead.
+
+        **Do not report a security vulnerability here.** Report it privately, as [SECURITY.md](https://github.com/jabbott-iii/softshellDB/blob/main/SECURITY.md) describes.
+
+        softshellDB is a single-node, embedded-first database with no third-party crates. Distribution (sharding, consensus), SQL, WASM, mobile and network filesystems are out of scope ([docs/00-overview.md](https://github.com/jabbott-iii/softshellDB/blob/main/docs/00-overview.md)).
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Bug or crash
+        - Data loss or corruption
+        - Feature or change proposal
+        - Performance
+        - Documentation
+        - Build, CI or tooling (xtask, bench)
+        - Question
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: areas
+    attributes:
+      label: Areas
+      description: The crates or parts it concerns. Pick "Not sure" if you do not know.
+      multiple: true
+      options:
+        - Not sure
+        - core
+        - sys or platform (files, durability, locks)
+        - codec (Value, JSON, SDOC, keycode, SLZ, framing)
+        - storage (WAL, SSTs, compaction, caches)
+        - txn (transactions, keyspaces)
+        - expr (query documents)
+        - documents
+        - graph
+        - series (time-series)
+        - text (full-text search)
+        - vector (vector search)
+        - softshelldb facade (Database, catalog, maintenance)
+        - proto, server or client
+        - cli
+        - tidepool
+        - xtask or CI
+        - benchmarks
+        - docs
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: In a sentence or two, what happens, or what you propose.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: |
+        For a bug: the steps to reproduce it, what you expected and what happened instead.
+        For data loss or corruption: the sync policy, how the process or machine stopped, and the output of `softshell check` on the directory.
+        For a proposal: the problem it solves, what you propose (with an API sketch if it helps), and the alternatives you considered.
+        For performance: the workload, what you measured and how (`cargo xtask bench`), and the numbers.
+      placeholder: |
+        1. Open a database with `Sync::Always`
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The commit you built (`git rev-parse --short HEAD`) or the release.
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Platforms
+      multiple: true
+      options:
+        - Not platform-specific
+        - Linux x86_64
+        - Linux aarch64
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows x86_64
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: The OS version, CPU, filesystem (ext4, XFS, btrfs, APFS, NTFS), storage device, and `rustc -V`.
+      placeholder: Ubuntu 24.04, x86_64, ext4 on NVMe, rustc 1.xx.0
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and output
+      description: Command output, a panic message, or the log. Remove tokens, user names, paths and any data you do not want to share.
+      render: text
+  - type: textarea
+    id: context
+    attributes:
+      label: Related tasks, decisions and context
+      description: A roadmap task or ADR this touches (such as M3.5 or ADR-0011), and anything else that helps.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and the roadmap.
+          required: true
+        - label: This is not a security vulnerability, and it holds no secrets, tokens or private data.
+          required: true
+        - label: I would like to work on this once a maintainer confirms it.
