@@ -1,0 +1,72 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/core",
+    "crates/sys",
+    "crates/platform",
+    "crates/codec",
+    "crates/storage",
+    "crates/expr",
+    "crates/proto",
+    "crates/txn",
+    "crates/documents",
+    "crates/graph",
+    "crates/series",
+    "crates/text",
+    "crates/vector",
+    "crates/softshelldb",
+    "crates/server",
+    "crates/client",
+    "crates/cli",
+    "apps/tidepool",
+    "xtask",
+    "bench",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/jabbott-iii/softshellDB"
+rust-version = "1.99.1"
+
+# Library crates only: the binaries (softshell-cli, tidepool, xtask,
+# softshell-bench) cannot be dependencies. Each `version` must equal
+# [workspace.package].version and is bumped with it.
+[workspace.dependencies]
+softshell-core = { path = "crates/core", version = "0.1.0" }
+softshell-sys = { path = "crates/sys", version = "0.1.0" }
+softshell-platform = { path = "crates/platform", version = "0.1.0" }
+softshell-codec = { path = "crates/codec", version = "0.1.0" }
+softshell-storage = { path = "crates/storage", version = "0.1.0" }
+softshell-expr = { path = "crates/expr", version = "0.1.0" }
+softshell-proto = { path = "crates/proto", version = "0.1.0" }
+softshell-txn = { path = "crates/txn", version = "0.1.0" }
+softshell-documents = { path = "crates/documents", version = "0.1.0" }
+softshell-graph = { path = "crates/graph", version = "0.1.0" }
+softshell-series = { path = "crates/series", version = "0.1.0" }
+softshell-text = { path = "crates/text", version = "0.1.0" }
+softshell-vector = { path = "crates/vector", version = "0.1.0" }
+softshelldb = { path = "crates/softshelldb", version = "0.1.0" }
+softshell-server = { path = "crates/server", version = "0.1.0" }
+softshell-client = { path = "crates/client", version = "0.1.0" }
+
+[workspace.lints.rust]
+unsafe_code = "deny"              # sys and platform override with #![allow(unsafe_code)]
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+missing_safety_doc = "deny"
+unwrap_used = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+dbg_macro = "deny"
+todo = "deny"
+
+[profile.xtask]
+inherits = "dev"
+opt-level = 3

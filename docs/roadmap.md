@@ -70,7 +70,7 @@ How to use this file:
 enforced by tooling from day one.
 **Decisions:** ADR-0002, ADR-0004, ADR-0005, ADR-0020.
 
-- [ ] **M0.1 — Workspace skeleton**
+- [x] **M0.1 — Workspace skeleton**
   - Depends: D0.1
   - Do:
     - Create every crate in the workspace map (`AGENTS.md`) as an empty
@@ -102,6 +102,26 @@ enforced by tooling from day one.
   - Verify: `cargo build --workspace`;
     `cargo clippy --workspace --all-targets -- -D warnings`;
     `grep -c 'source = ' Cargo.lock` (expect 0)
+  - Note: pinned Rust 1.99.1, the current stable (the user's choice,
+    2026-11-01), in `rust-toolchain.toml` and as `rust-version`.
+  - Note: `[workspace.dependencies]` lists the 16 library crates. The four
+    binaries have no library target, so they cannot be dependencies.
+  - Note: `publish = false` is set on `tidepool`, `xtask` and
+    `softshell-bench`, the internal list in `docs/05-release.md`. The 17
+    crates under `crates/` carry `LICENSE` and `NOTICE`. The release table
+    in that file names only `softshelldb` and its dependencies for
+    crates.io, so whether `softshell-proto`, `-server`, `-client` and `-cli`
+    are published stays open until M12.5.
+  - Note: `LICENSE` is copied as committed, with its appendix copyright
+    line filled in (the user's choice). ADR-0004 says `LICENSE` stays the
+    unmodified text; the two still need reconciling.
+  - Note: the `.gitignore` pattern `debug` matches no crate path, but it
+    would also hide any future directory named `debug`, such as a
+    `src/debug/` module.
+  - Note: in a scratch copy, a missing crate doc, `println!`, `unwrap()`,
+    `unsafe` in `softshell-txn` and an `unsafe` block without `// SAFETY:`
+    each failed `cargo clippy --workspace --all-targets -- -D warnings`; a
+    commented `unsafe` block in `softshell-sys` compiled.
 
 - [ ] **M0.2 — core: bytes, varints, errors, limits**
   - Depends: M0.1

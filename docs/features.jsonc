@@ -22,8 +22,9 @@
     {
       "name": "No third-party crates",
       "area": "Quality",
-      "summary": "softshellDB will be built from this workspace's crates and the Rust standard library alone. The build will fail if the lock file gains a package from outside the workspace, and each crate will use only the crates the architecture's dependency matrix allows.",
-      "tasks": ["M0.1", "M0.6"]
+      "summary": "softshellDB is built from this workspace's crates and the Rust standard library alone: the lock file lists only the workspace's own 20 packages. The build will fail if the lock file gains a package from outside the workspace, and each crate will use only the crates the architecture's dependency matrix allows.",
+      "tasks": ["M0.1", "M0.6"],
+      "ticked": ["M0.1"]
     },
     {
       "name": "Guardrails on every push",

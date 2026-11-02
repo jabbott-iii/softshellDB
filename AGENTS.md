@@ -1,7 +1,9 @@
 # softshellDB — an all-in-one NoSQL database engine and library (Rust)
 
-**Status:** design only. No crate exists yet; `docs/roadmap.md` lists the
-work, starting with the design review D0.1 and then M0.1. A task is ticked
+**Status:** early implementation. The design review (D0.1) and the
+workspace skeleton (M0.1) are done: every crate in the workspace map exists
+but is empty, and no `xtask` command is implemented yet. `docs/roadmap.md`
+lists the work. A task is ticked
 once it is done and verified. A task whose code is written but still needs a
 check on another OS stays unticked, with a `⏳ needs <OS>` note. The next
 task is the first unticked one whose dependencies are ticked and whose
@@ -105,7 +107,7 @@ exist yet: check before assuming any of them does.
     strings into the repository, logs or test fixtures. Release secrets
     exist only in CI secret storage (`docs/05-release.md`).
 
-## Workspace map (planned; created by M0.1)
+## Workspace map (created by M0.1; each crate is empty until its tasks)
 
 | Path | Package | Purpose | `unsafe` |
 | :- | :- | :- | :- |
