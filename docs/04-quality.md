@@ -47,9 +47,15 @@ pub fn check_sized<T: std::fmt::Debug>(
 );
 ```
 
-- The seed comes from `SOFTSHELL_SEED`, or a fixed value, so CI runs are
-  reproducible. The seed is printed on failure.
+- The seed comes from `SOFTSHELL_SEED` (decimal, or hex after `0x`), or a
+  fixed value, so CI runs are reproducible. The seed is printed on
+  failure, in decimal, as `replay with SOFTSHELL_SEED=…`.
+- Each case has its own generator, seeded through SplitMix64 from the
+  run's seed, the property's name and the case number: same-seed PCG32
+  streams are correlated, so cases must not share a seed.
 - A panicking generator or property is reported like any other failure.
+  The report shows the case, the size (and the smallest failing size),
+  the property's message and the input's `Debug` text, each cut at 4 KiB.
 
 ### Model-based tests
 

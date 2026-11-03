@@ -127,9 +127,9 @@ seeded PCG32 instead.
   A `Clock` trait is injected everywhere wall time matters, so tests are
   deterministic.
 - `std::time::Instant` for durations (timeouts, stall timing, latencies).
-- A wall clock that goes backwards does not reorder ids issued by one
-  process: the id generator never issues a timestamp smaller than the last
-  one it issued.
+- A wall clock that goes backwards does not reorder ids from one
+  generator (the facade keeps one per open database): it never issues a
+  timestamp smaller than the last one it issued.
 
 ## Per-OS verification checklist
 

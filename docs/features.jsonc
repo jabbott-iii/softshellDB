@@ -35,9 +35,9 @@
     {
       "name": "Foundation library",
       "area": "Foundation",
-      "summary": "A dependency-free core provides checked byte readers and writers that never panic on hostile input, canonical varints, size limits, decode errors that name the byte offset and what was being done, CRC-32C checksums, stable and fast non-cryptographic hashes, SHA-256 for token hashing (checked against NIST's test vectors) and a seedable PCG32. It will add time-ordered ids, an injectable clock, logging, metrics, a CLI parser and a property-test harness.",
+      "summary": "A dependency-free core provides checked byte readers and writers that never panic on hostile input, canonical varints, size limits, decode errors that name the byte offset and what was being done, CRC-32C checksums, stable and fast non-cryptographic hashes, SHA-256 for token hashing (checked against NIST's test vectors) and a seedable PCG32. It also has time-ordered 128-bit ids, an injectable clock with nanosecond timestamps and exact RFC 3339 text, a process-wide logger with stderr, rotating-file and in-memory sinks, lock-free metrics with percentiles, a small command-line parser, and a seeded property-test harness whose failures print the seed that replays them.",
       "tasks": ["M0.2", "M0.3", "M0.4"],
-      "ticked": ["M0.2", "M0.3"]
+      "ticked": ["M0.2", "M0.3", "M0.4"]
     },
     {
       "name": "JSON and the value model",

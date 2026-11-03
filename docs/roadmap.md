@@ -181,7 +181,7 @@ enforced by tooling from day one.
   - Note: `Pcg32` streams with the same seed are correlated. The M0.4
     property harness should give each case its own well-mixed seed.
 
-- [ ] **M0.4 — core: ids, clock, civil time, logging, metrics, CLI, test harness**
+- [x] **M0.4 — core: ids, clock, civil time, logging, metrics, CLI, test harness**
   - Depends: M0.3
   - Do: `id::{Id, IdGenerator}` (entropy injected), `clock::{Clock,
     SystemClock, ManualClock, Timestamp}`, `civil` with RFC 3339, the `log`
@@ -198,6 +198,42 @@ enforced by tooling from day one.
     - A failing `check` prints a reproducible seed; `check_sized` shrinks
       by size.
   - Verify: `cargo test -p softshell-core --all-features`
+  - Note: user decisions (2026-11-03): the rotating log `FileSink` writes
+    with `std::fs` inside core, since log files are not database files and
+    need no `Vfs` crash semantics (recorded in the core spec; AGENTS.md
+    rule 4 is unchanged); RFC 3339 output always has nine fraction digits.
+  - Note: three reviewers critiqued the design before any code. Adopted:
+    a concrete `EntropyError` (documents and graph cannot name the
+    platform's error); the log macros under hidden names, re-exported from
+    `log` (a crate with its own `mod error` could not otherwise import
+    `error!`); a rotation that fills gaps and retries only after another
+    `max_bytes`; messages rendered once, outside locks, capped at 16 KiB;
+    a thread-local `log::capture` for tests; `try_set_logger`; `cli`
+    errors for a missing option or command; wrapping per-case seeds.
+  - Note: pinned values come from independent Python: the RFC 3339 text
+    of one instant on every day from 1677 to 2262 (an aggregate), the
+    Crockford forms of 1,000 ids, the per-case seeds, and which case fails
+    and how far it shrinks in the harness tests.
+  - Note: an adversarial review (four reviewers, each finding checked by
+    a skeptic) confirmed 39 findings. Bugs fixed: `checked_add` and
+    `ManualClock::advance` with steps of 2^63 ns or more; an abort when a
+    thread-local destructor logs; a deadlock when a replaced logger's sink
+    logs as it is dropped; single-dash options breaking order
+    independence in `cli`; quantile ranks one too high for decimals such
+    as 0.55; `approx_eq` true on overflow with a tolerance above 1; a cut
+    message gaining text after the cut. Untested paths got tests, and 24
+    of the bugs and mutants were re-planted afterwards: every one fails
+    the suite.
+  - Note: `cli`'s `NotUnicode` paths need an `OsString` that is not UTF-8,
+    which core cannot build without platform code; a scratch program
+    checked them by hand on Linux (a separate-token value and `_os`
+    positionals pass the bytes through; `--out=<non-UTF-8>`, a subcommand
+    and a text value give `NotUnicode`; a flag given `=<non-UTF-8>` gives
+    `UnexpectedValue`). macOS and Windows run the suite from M0.8.
+  - Note: no `dev` feature was added to core, so `--all-features` builds
+    the default. docs/01-architecture.md lists allocation counters under
+    core's `dev`, but a counting allocator needs `unsafe impl GlobalAlloc`,
+    which core denies.
 
 - [ ] **M0.5 — codec: `Value`, JSON and JSONC**
   - Depends: M0.2, M0.4

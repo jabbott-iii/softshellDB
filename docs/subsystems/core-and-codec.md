@@ -15,12 +15,12 @@ dependencies.
 | `hash` | `fnv1a64` (stable, may be persisted); `FastHasher` with `FastHashMap`/`FastHashSet` (deterministic, never persisted, not resistant to deliberate collisions) |
 | `sha256` | SHA-256 per FIPS 180-4, one-shot, used only for API tokens (ADR-0019) |
 | `rng` | `Pcg32` (PCG-XSH-RR, seedable with `new(seed, stream)`: `next_u32`, `next_u64`, `next_f64`, unbiased `range`, `shuffle`). Same-seed streams are correlated: independent generators need different, well-mixed seeds |
-| `id` | `Id` (128-bit): 48-bit Unix milliseconds + 80 random bits; `IdGenerator` (monotonic within a process); text form is 26 characters of Crockford base32 |
-| `clock` | `Clock` trait, `SystemClock`, `ManualClock` for tests; `Timestamp` (i64 nanoseconds since the Unix epoch, UTC: 1677-09-21T00:12:43.145224192Z to 2262-04-11T23:47:16.854775807Z, ADR-0013) |
-| `civil` | Unix time ↔ UTC civil date-time (days-to-civil); RFC 3339 formatting and parsing (UTC offsets accepted on input, `Z` on output; a time outside the `Timestamp` range is an error, never clamped) |
-| `log` | Macros `error!`, `warn!`, `info!`, `debug!`, `trace!` with a module target; sinks: none (library default), stderr, rotating file, in-memory ring buffer; level filter per target |
-| `metrics` | `Counter`, `Gauge`, `Histogram` (log-linear buckets, p50/p95/p99) on atomics; a `Registry` that snapshots them |
-| `cli` | Minimal argument parser for `xtask`, the CLI and the bench (`--flag`, `--key value`, positional, subcommands) |
+| `id` | `Id` (128-bit): 48-bit Unix milliseconds + 80 random bits, the ULID layout, so bytes, value and text sort alike; `IdGenerator` (strictly increasing per generator; the facade keeps one per open database), with its randomness from an `Entropy` source (the OS in the facade, `Pcg32` in tests); text form is 26 characters of Crockford base32, upper case on output and either case on input |
+| `clock` | `Clock` trait (`&C`, `Box<C>` and `Arc<C>` are clocks too), `SystemClock`, `ManualClock` for tests; `Timestamp` (i64 nanoseconds since the Unix epoch, UTC: 1677-09-21T00:12:43.145224192Z to 2262-04-11T23:47:16.854775807Z, ADR-0013), whose `Display` and `FromStr` are RFC 3339 |
+| `civil` | Unix time ↔ UTC civil date-time (`DateTime`, by Hinnant's days-to-civil algorithms); RFC 3339 formatting and parsing. Output is UTC with exactly nine fraction digits, so each timestamp has one 30-character form and text order is time order. Input may have 0 to 9 fraction digits, any UTC offset, and `T`/`Z` in either case. A leap second (`:60`), more than nine fraction digits, and a time outside the `Timestamp` range are errors, never rounded or clamped |
+| `log` | Macros `log::error!`, `warn!`, `info!`, `debug!`, `trace!`, with the module path as target. One process-wide logger, installed by the application, never by a library (with none installed, nothing is written). It has a `Filter` (a level per module-path prefix) and sinks: stderr, rotating file, in-memory ring buffer. `capture` collects what a test's own thread logs. Messages are capped at 16 KiB and escaped to one line. The file sink writes its own log files with `std::fs`: they are not database files, are never synced, and need no `Vfs` crash semantics |
+| `metrics` | `Counter`, `Gauge`, `Histogram` (log-linear: 16 buckets per power of two, so a quantile is at most 1/16 above the true value; p50/p95/p99) on atomics; a `Registry` that names them and snapshots them in name order |
+| `cli` | Minimal argument parser for `xtask`, the CLI and the bench: subcommands, `--flag`, `--key value` or `--key=value`, positionals (read after every option), `--`. Anything the program did not read is an error, and every `CliError` means exit status 2 |
 | `testing` | `check`, `check_sized`, `assert_approx!`, and the fuzz driver that every crate's fuzz targets run on (see `docs/04-quality.md`, ADR-0020) |
 
 ### `Limits`
@@ -45,9 +45,10 @@ the remaining input, before allocating.
 - `crc32c(b"123456789") == 0xE306_9283`.
 - `sha256(b"abc")` matches FIPS 180-4's example; the NIST CAVP short and
   long message vectors pass.
-- `IdGenerator` never issues an id smaller than the previous one, even if
-  the wall clock steps back: it keeps the larger timestamp and increments
-  the random part.
+- `IdGenerator` issues strictly increasing ids, even if the wall clock
+  steps back: it keeps the larger millisecond and adds one to the last id
+  (a carry out of the random part moves the millisecond forward).
+- `parse_rfc3339(&format_rfc3339(t)) == Ok(t)` for every `Timestamp` `t`.
 - `FastHasher` output is the same on every supported target, but a
   `FastHashMap`'s iteration order also depends on its whole sequence of
   operations (capacity, inserts, removals) and on the target and toolchain
