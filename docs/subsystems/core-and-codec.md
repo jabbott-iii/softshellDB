@@ -85,35 +85,104 @@ pub enum Value {
   - `Int` and `Float` compare by mathematical value, exactly, for every
     pair (`i64::MAX` vs `9.223372036854776e18` included). `5` equals `5.0`.
   - NaN equals NaN and sorts after every other number. `-0.0` equals `0.0`.
+    `F32Vec` elements compare the same way.
   - Strings and bytes compare bytewise; arrays and objects
-    lexicographically by element (objects by `(key, value)` pairs in order).
+    lexicographically by element (objects by `(key, value)` pairs in order),
+    a shorter prefix first.
+  - `PartialEq`, `Eq`, `Ord` and `Hash` all follow this order, so
+    `Int(5) == Float(5.0)`. `Value::identical` compares variants and bits
+    instead (every NaN identical), for round-trip tests.
+- **NaN is not data** (ADR-0022): every NaN is one value, whatever its
+  sign and payload. JSON writes it as the name `NaN`, which reads back as
+  the canonical quiet NaN; SDOC stores only that NaN (below).
 - **Timestamp range:** 1677–2262, the span of an `i64` of nanoseconds
   (ADR-0013). Extended JSON or RFC 3339 text outside it is an error.
 - **Field names** in stored documents: 1–1,024 bytes of UTF-8, no `.`
   (the path separator), not starting with `$` (reserved for operators and
   extended JSON).
-- `value!` builds values with JSON-like syntax; `ToValue`/`FromValue` and
-  `record!` convert Rust types (ADR-0013).
+- `Object` keeps insertion order and never holds two equal keys:
+  `insert` replaces a key's value in place, and `Object::try_from(Vec)`
+  rejects a repeat with `DuplicateKeyError` (found in `O(n log n)`, the
+  check JSON and SDOC use). Lookups scan the entries.
+- `value::value!` builds values with JSON-like syntax: `null`, `[...]` and
+  `{...}` as in JSON, any other token or expression through `Value::from`,
+  keys as a string literal, a variable or a parenthesized expression. It
+  does not interpret extended JSON. `From` covers `bool`, the integers up
+  to `i64`/`u32`, `f32`/`f64`, `&str`/`String`/`&String`, `Vec<f32>` and
+  `&[f32]` (as `F32Vec`), `Vec<Value>`, `Object`, `Timestamp`, `Id` and
+  `Option<T>`; not `Vec<u8>`, so integer vectors never become `Bytes`
+  by inference. `ToValue`/`FromValue` and `record!` convert Rust types
+  (ADR-0013, M2.5).
 
 ### JSON and JSONC
 
 - `json::parse(&str, Limits)` accepts RFC 8259; `jsonc::parse` also accepts
-  `//` and `/* */` comments and trailing commas. Writers:
-  `to_string_compact`, `to_string_pretty`.
-- A number without a fraction or exponent that fits `i64` is `Int`;
-  anything else is `Float`. A number outside `f64` range is an error.
-- Duplicate object keys are an error.
+  `//` and `/* */` comments (wherever whitespace may go; `//` ends at `\n`
+  or `\r`; block comments do not nest) and a trailing comma after the
+  last element or entry (`[1,]`, but not `[,]` or `[1,,]`). Writers:
+  `to_string_compact`, `to_string_pretty`; `Display` for `Value` is the
+  compact form.
+- **Input:** whitespace is space, tab, `\n` and `\r` only; a leading byte
+  order mark is an error; anything after the value is an error.
+- **Numbers:** one without a fraction or exponent that fits `i64` is
+  `Int` (`-0` is `Int(0)`); anything else is `Float`, correctly rounded
+  (a token over 64 bytes is first rewritten with its exponent folded in,
+  because `f64::from_str` alone miscounts an explicit exponent of 655,360
+  or more, which enough digits can offset into range). A number
+  outside `f64` range is an error; one too small for it rounds to zero.
+- **Strings:** control characters U+0000–U+001F must be escaped; `\u`
+  escapes take exactly four hex digits; a lone surrogate is an error. Keys
+  are compared after unescaping.
+- Duplicate object keys are an error, found when the object closes.
 - **Extended JSON** maps the types JSON lacks, in both directions:
 
   | Value | JSON form |
   | :- | :- |
-  | `Id` | `{"$id": "01JBX…"}` (26 characters) |
-  | `Timestamp` | `{"$ts": "2026-11-01T12:00:00.000000001Z"}` |
+  | `Id` | `{"$id": "01JBX…"}` (26 characters, either case on input) |
+  | `Timestamp` | `{"$ts": "2026-11-01T12:00:00.000000001Z"}` (RFC 3339; on input any offset and 0–9 fraction digits) |
   | `Bytes` | `{"$bytes": "<base64, RFC 4648, padded>"}` |
-  | `F32Vec` | `{"$f32vec": [0.1, 0.2]}` |
+  | `F32Vec` | `{"$f32vec": [0.1, 0.2]}` (each element rounded once, from its text, to `f32`; a non-finite element as `{"$float": …}`) |
   | Non-finite `Float` | `{"$float": "NaN" \| "Infinity" \| "-Infinity"}` |
 
-- Errors carry the line and column.
+  - These five keys are reserved in every object: an object whose first
+    key is one of them must have no other, and one of them anywhere else
+    is an error. Each form's value is read by its own reader (a string, or
+    the `$f32vec` array), so forms never nest. Other `$` keys (`$in`,
+    `$set`) are ordinary keys. An `Object` that itself has a reserved key
+    has no JSON form; future operators can never use these names.
+  - **base64** is strict, so each byte string has one text: the length a
+    multiple of 4, `=` only as the last one or two characters, no
+    whitespace, the unused bits before the padding zero.
+- **Limits:** the text against `max_document_bytes`; each string and key,
+  unescaped, against `max_string_bytes`; each array and object against
+  `max_entries`; each `$f32vec` against `max_vector_dims`; the nesting of
+  arrays and objects against `max_depth` (a top-level container is depth
+  1; extended JSON forms are scalars and add none). The parser recurses
+  once per level, as do the writers and `Value`'s `Clone`, `Drop`, `Ord`,
+  `Hash` and `Debug`: a `max_depth` up to 256 is tested on a 2 MiB stack
+  in a debug build. A parsed value takes at most about 25 times its text's
+  size in peak memory (measured with glibc: 398 MiB for 16 MiB of nested
+  one-element arrays, `[[[[[[[[0]]]]]]]],…`, in arrays of at most
+  `max_entries`).
+- **Writers** give one text per value. A finite float is written with the
+  shortest digits that round back to it (an exact tie between two
+  candidates rounds up), as a plain decimal with a `.` when its decimal
+  exponent is −4 to 15 (`5.0`, `0.0001`), otherwise as `d.ddde<exp>`
+  (`1e16`, `-1.5e-7`), so it always reads back as a `Float`. Strings
+  escape `"`, `\`, `\b`, `\f`, `\n`, `\r` and `\t`, other control
+  characters as `\u00xx`, and nothing else. Pretty output puts each
+  element, entry and closing bracket of a non-empty array or object on its
+  own line, indented two spaces per level, with extended forms on one
+  line; deep nesting grows it roughly with the square of the depth.
+- **Errors** (`JsonError`) carry the kind, the byte offset, and the line
+  and column (from 1; columns count characters; `\n`, `\r\n` and a lone
+  `\r` end a line). `Display` includes at most one escaped character of
+  the input, never a key, so it is safe to log. `$id`, `$ts` and `$bytes`
+  errors point at the string and keep the `ParseIdError`, `CivilError` or
+  `Base64Error` as their source.
+- The text parsers read through a cursor of checked `get`s and `str::get`
+  slices instead of `ByteReader`, which cannot peek or keep character
+  boundaries; `base64` is fuzzed through the `json` target's `$bytes`.
 
 ### SDOC — binary documents (format version 1)
 
@@ -125,19 +194,21 @@ value is a tag byte and a payload:
 | `0x00` | Null | — |
 | `0x01` / `0x02` | false / true | — |
 | `0x03` | Int | zigzag varint |
-| `0x04` | Float | 8 bytes, little-endian IEEE 754 bits, kept exactly |
+| `0x04` | Float | 8 bytes, little-endian IEEE 754 bits, kept exactly, except that NaN is only the canonical `0x7ff8000000000000` (ADR-0022) |
 | `0x05` | String | varint length, UTF-8 bytes (validated) |
 | `0x06` | Bytes | varint length, bytes |
 | `0x07` | Timestamp | zigzag varint nanoseconds |
 | `0x08` | Id | 16 bytes, big-endian |
 | `0x09` | Array | varint byte length of the rest, varint count, values |
 | `0x0A` | Object | varint byte length of the rest, varint count, then per field: varint key length, key, value |
-| `0x0B` | F32Vec | varint count, 4 bytes per element, little-endian |
+| `0x0B` | F32Vec | varint count, 4 bytes per element, little-endian; NaN only as `0x7fc00000` (ADR-0022) |
 
 - Containers carry their byte length so a reader can skip a field without
   decoding it (projections, path lookups).
-- One encoding per value: minimal varints, no unused tags. Decoding then
-  encoding returns the same bytes (a fuzz assertion).
+- One encoding per value: minimal varints, no unused tags, one NaN (the
+  encoder writes every NaN as the canonical one; the decoder rejects any
+  other NaN). Decoding then encoding returns the same bytes (a fuzz
+  assertion).
 - The decoder checks depth, total size, and every declared length against
   `Limits` and the remaining input before allocating.
 

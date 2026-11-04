@@ -235,7 +235,7 @@ enforced by tooling from day one.
     core's `dev`, but a counting allocator needs `unsafe impl GlobalAlloc`,
     which core denies.
 
-- [ ] **M0.5 — codec: `Value`, JSON and JSONC**
+- [x] **M0.5 — codec: `Value`, JSON and JSONC**
   - Depends: M0.2, M0.4
   - Do: `Value`, the value comparator (ADR-0013), `json::parse`,
     `jsonc::parse`, the writers, extended JSON, base64 (RFC 4648), and the
@@ -249,6 +249,45 @@ enforced by tooling from day one.
     - Extended JSON round-trips every `Value` variant.
     - Malformed input returns errors; nothing panics.
   - Verify: `cargo test -p softshell-codec`
+  - Note: user decision (2026-11-03): one canonical NaN (ADR-0022). NaN's
+    sign and payload are not data; SDOC (M2.1) stores only the canonical
+    quiet NaN, and M2.1's acceptance says so.
+  - Note: three reviewers critiqued the design before the code. Adopted:
+    no `From<Vec<u8>>`, since inference turned integer vectors into `Bytes`
+    (callers write `Value::Bytes`); `value!` exported as `value::value`,
+    with parenthesized keys unwrapped (they warned at the caller) and
+    lists split one element per recursion level; `DuplicateKeyError`, and
+    no key in any error message, so errors are safe to log; a reader of
+    its own for each extended JSON form, so wrappers cannot nest, with an
+    object's depth charged once its first key shows it is not a wrapper;
+    shared scratch stacks that close each container into a vector of exact
+    length; long number tokens rewritten before `from_str`, which returns
+    infinity for `1` followed by 655,360 zeros and `e-655360`.
+  - Note: pinned values come from an independent Python program that
+    mirrors each generator call for call: the shortest f64 and f32 text of
+    random bit patterns and of short decimals (exact fraction search, ties
+    rounded up as Rust does, otherwise checked against `repr`), string
+    escaping (`json.dumps(ensure_ascii=False)`), number parsing of short
+    and long tokens (`float()`, and exact fractions for `f32`), the
+    `Int`/`Float` order (Python's exact comparison, 20,468 pairs) and
+    base64. RFC 8259's §13 examples and RFC 4648's §10 vectors are tested
+    as published.
+  - Note: measured: a `max_depth` of 256 works on a 2 MiB stack in a debug
+    build for parsing, cloning, comparing, hashing, writing and dropping
+    (512 works too, 1,024 overflows); a parsed value takes at most about 25
+    times its text's peak memory (398 MiB for 16 MiB of nested one-element
+    arrays, glibc).
+  - Note: an adversarial review (four reviewers, each finding checked by a
+    skeptic) confirmed 17 findings. Fixed: text ending inside an extended
+    JSON form gave `ExtendedJson` instead of `UnexpectedEnd`; seven claims
+    in docs or comments (the exponent `from_str` miscounts, the 768-digit
+    halfway bound, the memory and pretty-output bounds, the order errors
+    are reported in, the macro's recursion limit, a test's coverage); nine
+    untested paths. 39 bugs and mutants, the review's among them, were
+    re-planted one at a time afterwards: every one fails the suite.
+  - Note: the `json` fuzz target and its corpus come with M0.7's driver.
+    Until then a property test parses 20,000 mutated texts in both
+    dialects, under default and tight limits, and rewrites every success.
 
 - [ ] **M0.6 — xtask: guardrail checks**
   - Depends: M0.4, M0.5
@@ -366,15 +405,17 @@ Windows in CI; `docs/03-platforms.md` states what macOS `std` does.
 ## M2 — Binary formats
 
 **Goal:** every byte format the engine writes, each fuzzed.
-**Decisions:** ADR-0013, ADR-0021.
+**Decisions:** ADR-0013, ADR-0021, ADR-0022.
 
 - [ ] **M2.1 — codec: SDOC**
   - Depends: M0.5, M0.7
   - Do: SDOC encode and decode per `docs/subsystems/core-and-codec.md`;
     path lookup over SDOC bytes without full decoding; fuzz target `sdoc`.
   - Accept:
-    - Property: `decode(encode(v)) == v` (floats bit-exact) and
-      `encode(decode(b)) == b` for every `b` that decodes.
+    - Property: `decode(encode(v)) == v` (floats bit-exact, except that
+      every NaN is written as the canonical NaN, ADR-0022) and
+      `encode(decode(b)) == b` for every `b` that decodes; a non-canonical
+      NaN is rejected.
     - Limits are enforced before allocation (a declared 4 GiB string in a
       10-byte input is an error, not an allocation).
     - Fixtures in `tests/fixtures/sdoc/v1/`.

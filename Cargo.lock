@@ -17,6 +17,9 @@ version = "0.1.0"
 [[package]]
 name = "softshell-codec"
 version = "0.1.0"
+dependencies = [
+ "softshell-core",
+]
 
 [[package]]
 name = "softshell-core"

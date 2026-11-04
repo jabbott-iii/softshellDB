@@ -17,3 +17,12 @@
 //! compression, record framing and the series chunk codec.
 //!
 //! Specified in `docs/subsystems/core-and-codec.md`.
+
+pub mod base64;
+pub mod json;
+pub mod jsonc;
+pub mod value;
+
+mod macros;
+#[cfg(test)]
+mod test_values;

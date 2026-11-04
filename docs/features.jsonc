@@ -42,8 +42,9 @@
     {
       "name": "JSON and the value model",
       "area": "Foundation",
-      "summary": "One value type will carry documents, properties, series fields, queries and protocol messages, with a total order across types, JSON and JSONC parsing, extended JSON for ids, timestamps, bytes and vectors, and conversions to and from Rust structs without serde.",
-      "tasks": ["M0.5", "M2.5"]
+      "summary": "One value type carries documents, properties, series fields, queries and protocol messages, with one total order across types in which integers and floats compare exactly and every NaN is one value. JSON and JSONC parse with errors that give the line and column, check every size against limits before allocating, and write each value as one text, with extended JSON for ids, timestamps, bytes, vectors and non-finite floats. A value! macro builds values in JSON-like syntax. Conversions to and from Rust structs without serde will follow.",
+      "tasks": ["M0.5", "M2.5"],
+      "ticked": ["M0.5"]
     },
     {
       "name": "Binary formats",

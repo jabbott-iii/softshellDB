@@ -612,3 +612,40 @@ changed.
 - **Alternatives considered:** no compatibility before 1.0 (simpler, but
   users lose data on upgrade).
 - **Revisit when:** at 1.0, to set the long-term support window.
+
+## ADR-0022 — One canonical NaN
+
+- **Status:** Accepted (user decision, 2026-11-03)
+- **Date:** 2026-11-03
+- **Context:** The value comparator (ADR-0013) already treats every NaN
+  as one value, and keycode encodes them all as `0x31`. But the SDOC spec
+  kept a `Float`'s 8 bytes "exactly", and extended JSON writes any NaN as
+  `{"$float": "NaN"}` and reads back the canonical NaN, so an
+  export-then-import (M6.8) would change a stored NaN's bytes. NaN bits
+  also differ by platform: on x86_64 with rustc 1.99.1 a computed NaN
+  (`0.0 / 0.0`, `inf - inf`, `sqrt(-1)`) is `0xfff8000000000000` (`f32`
+  `0xffc00000`), while aarch64's default NaN is positive, so keeping bits
+  would store different bytes for the same input on each platform. The
+  question came up in M0.5's design review.
+- **Decision:**
+  - NaN is not data: every NaN is the same value, whatever its sign and
+    payload.
+  - SDOC (M2.1) writes only the canonical quiet NaN, `f64`
+    `0x7ff8000000000000` and `f32` `0x7fc00000` (for `F32Vec` elements),
+    and rejects any other NaN bit pattern as a non-canonical encoding, so
+    `encode(decode(b)) == b` still holds. Floats are otherwise kept bit
+    for bit.
+  - Extended JSON keeps `{"$float": "NaN"}`, and `$f32vec` elements the
+    same form.
+  - `Value::identical` treats every NaN as identical to every other NaN;
+    round-trip properties compare with it.
+- **Consequences:** the same input gives the same files on every platform,
+  and export then import reproduces SDOC byte for byte. A NaN's payload
+  cannot be stored; an application that encodes data in NaN payloads must
+  store the bits as an `Int` or `Bytes` instead.
+- **Alternatives considered:** keep NaN sign and payload bits, with an
+  extended JSON form such as `{"$float": "NaN:fff8000000000000"}` — rejected:
+  a computed NaN would be stored with different bytes on x86_64 and
+  aarch64, and every reader of extended JSON would need the extra form.
+- **Revisit when:** a user needs NaN payloads stored (for example
+  NaN-boxed data imported from another system).
