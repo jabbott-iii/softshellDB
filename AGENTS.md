@@ -1,7 +1,8 @@
 # softshellDB — an all-in-one NoSQL database engine and library (Rust)
 
 **Status:** early implementation. Every crate in the workspace map exists,
-but most are still empty, and no `xtask` command is implemented yet.
+but most are still empty. Of the `xtask` commands, `ci` and the guardrail
+checks it runs exist (M0.6); the rest do not yet.
 `docs/roadmap.md` lists the work and ticks what is done. A task is ticked
 once it is done and verified. A task whose code is written but still needs a
 check on another OS stays unticked, with a `⏳ needs <OS>` note. The next
@@ -141,7 +142,8 @@ exist yet: check before assuming any of them does.
 | `cargo xtask unsafe-audit` | Fails if `unsafe` is outside `sys`/`platform` or lacks a `SAFETY:` comment | M0.6 |
 | `cargo xtask headers` | Fails if a source file lacks the Apache-2.0 header (ADR-0004) | M0.6 |
 | `cargo xtask workflows` | Fails if a workflow pins an action by anything but a commit SHA or over-grants its token | M0.8 |
-| `cargo xtask features` | Fails if a ticked task belongs to no feature in `docs/features.jsonc` | M0.6 |
+| `cargo xtask release-no-dev` | Fails if a release build of `softshelldb` or `softshell-cli` has the `dev` or `fault-injection` feature | M0.6 |
+| `cargo xtask features` | Fails if a ticked `M` task belongs to no feature in `docs/features.jsonc` | M0.6 |
 | `cargo xtask fuzz-smoke [--secs N] [--target T]` | Mutation fuzzer over every decoder | M0.7 |
 | `cargo xtask crash [--minutes N] [--exhaustive]` | Process-kill runs; every crash point of the workload | M3.7, M3.8 |
 | `cargo xtask fixtures --new <format>` | Writes fixtures of the current format version | M0.7 |

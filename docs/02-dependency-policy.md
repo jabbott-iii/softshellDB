@@ -78,7 +78,11 @@ is true:
      reference.
    - Add the exact pin to `xtask/deps-allowlist.txt` (`name version ADR-NNNN`),
      one line per package the crate brings in, transitive ones included.
-   - Use an exact version requirement (`= x.y.z`).
+     The version is exactly what `Cargo.lock` records, build metadata
+     included; the ADR must be `Accepted`. Blank lines and `#` comments are
+     allowed. An approval is for the package from crates.io only.
+   - Use an exact version requirement (`= x.y.z`; cargo drops build
+     metadata from requirements, so the pin leaves it out).
    - Wrap the crate behind a single module or crate boundary of ours, so it
      can be replaced without touching callers.
    - Put it behind a cargo feature if it is needed only by the server or
@@ -139,9 +143,23 @@ trigger** fires. It is not approved.
 
 ## Enforcement
 
-- **`cargo xtask deps`** reads `cargo metadata --format-version 1` (parsed
-  with our own JSON parser). It fails if any package has a non-null
-  `source` and is not in `xtask/deps-allowlist.txt` at that exact version.
+- **`cargo xtask deps`** reads `cargo metadata --format-version 1`
+  (parsed with our own JSON parser), offline and `--locked`: with
+  `--no-deps` for what each member's manifest declares, and with
+  `--all-features` for every package in `Cargo.lock`, optional ones
+  included. It fails if a package from outside the workspace is not in
+  `xtask/deps-allowlist.txt` at that exact name and version, from crates.io;
+  if a path package outside the workspace is in the graph (vendored code);
+  if an approved crate is required at anything but `= x.y.z`; if a member is
+  not a crate of the dependency matrix; and if a `Cargo.toml` other than
+  the root's and the members' (a separate workspace) or another
+  `Cargo.lock` is in the repository. Submodules, and the cargo settings that
+  change where code comes from (`patch` and `replace` in `Cargo.toml`;
+  `source`, `patch`, `registries`, `paths` and `include` in
+  `.cargo/config.toml`), are not allowed at all, with no approval for them.
+  Checking that an allowlist line's ADR is `Accepted` keeps the file
+  consistent with the decisions; review of the change is what keeps an
+  approval honest.
 - **`cargo xtask layers`** checks the workspace dependency graph against the
   matrix in `docs/01-architecture.md`.
 - **Path-scoped rule** `.claude/rules/dependencies.md` loads whenever an

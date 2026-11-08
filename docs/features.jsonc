@@ -22,15 +22,16 @@
     {
       "name": "No third-party crates",
       "area": "Quality",
-      "summary": "softshellDB is built from this workspace's crates and the Rust standard library alone: the lock file lists only the workspace's own 20 packages. The build will fail if the lock file gains a package from outside the workspace, and each crate will use only the crates the architecture's dependency matrix allows.",
+      "summary": "softshellDB is built from this workspace's crates and the Rust standard library alone: the lock file lists only the workspace's own 20 packages. `cargo xtask deps` fails if the lock file or a manifest gains a crate from outside the workspace that the user has not approved, vendored code, a submodule or a setting that changes where code comes from, and `cargo xtask layers` fails if a crate depends on one the architecture's dependency matrix does not allow.",
       "tasks": ["M0.1", "M0.6"],
-      "ticked": ["M0.1"]
+      "ticked": ["M0.1", "M0.6"]
     },
     {
       "name": "Guardrails on every push",
       "area": "Quality",
-      "summary": "Each push will be formatted, linted with warnings as errors, tested, and checked for dependencies, layering, license headers and unsafe code on Linux, macOS and Windows, with every CI action pinned by commit SHA.",
-      "tasks": ["M0.6", "M0.8"]
+      "summary": "`cargo xtask ci` formats, lints with warnings as errors and tests the workspace, and checks, offline, its dependencies, layering, license headers, unsafe code (only in the two OS crates, each block saying why it is sound), release features and this feature list. CI will run it on every push on Linux, macOS and Windows, with every action pinned by commit SHA.",
+      "tasks": ["M0.6", "M0.8"],
+      "ticked": ["M0.6"]
     },
     {
       "name": "Foundation library",

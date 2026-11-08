@@ -1,0 +1,5 @@
+# Third-party packages the user has approved (docs/02-dependency-policy.md),
+# one per line: `name version ADR-NNNN`, for every package an approved crate
+# brings into Cargo.lock, transitive ones included. The ADR must be Accepted.
+# `cargo xtask deps` checks Cargo.lock and every manifest against this list.
+# The approved set is empty.

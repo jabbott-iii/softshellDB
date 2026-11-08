@@ -9,3 +9,7 @@ publish = false
 
 [lints]
 workspace = true
+
+[dependencies]
+softshell-core.workspace = true
+softshell-codec.workspace = true

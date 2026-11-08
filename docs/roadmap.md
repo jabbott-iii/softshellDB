@@ -289,7 +289,7 @@ enforced by tooling from day one.
     Until then a property test parses 20,000 mutated texts in both
     dialects, under default and tight limits, and rewrites every success.
 
-- [ ] **M0.6 — xtask: guardrail checks**
+- [x] **M0.6 — xtask: guardrail checks**
   - Depends: M0.4, M0.5
   - Do: subcommands `fmt`, `clippy`, `test`, `deps` (+ an empty
     `xtask/deps-allowlist.txt`), `layers` (the matrix as a `const`),
@@ -303,6 +303,86 @@ enforced by tooling from day one.
       block in `softshell-txn`, a registry dependency, a file without the
       header. Record each demonstration in a task note.
   - Verify: `cargo xtask ci`, plus the demonstrations
+  - Note: each demonstration ran in a scratch copy of the working tree
+    (`.git` included, for `git ls-files`): the violation was planted,
+    `cargo xtask <check>` run, the files restored from a backup (no Git
+    writes) and the check run again. Each failed with exit status 1, then
+    passed with 0:
+    - a path dependency that breaks the matrix, `softshell-documents` in
+      `softshell-txn`'s `[dependencies]`: `layers` reports "`softshell-txn`
+      may not depend on `softshell-documents` (in [dependencies]); its row
+      of the dependency matrix allows: softshell-core, softshell-codec,
+      softshell-storage";
+    - an `unsafe` block in `softshell-txn`, under a `// SAFETY:` comment:
+      `unsafe-audit` reports "crates/txn/src/lib.rs:23: `unsafe` outside
+      softshell-sys and softshell-platform";
+    - a registry dependency, `leftpad = "1"` in `softshell-txn`, with
+      crates.io replaced by a local directory in a config in the copy's
+      parent directory, so no network was used and the package's source is
+      the real crates.io string: `deps` reports "`leftpad` comes from
+      crates.io and is not an approved crate from crates.io in
+      xtask/deps-allowlist.txt". Offline with no such directory, cargo
+      itself exits 101 before `xtask` runs;
+    - a new `crates/txn/src/extra.rs` without the header: `headers` reports
+      "has no license header".
+  - Note: more demonstrations the same way, each caught: an optional
+    registry dependency behind a feature; copied code made a member; a
+    separate workspace with a crates.io dependency; dotted-key source
+    replacement; a `#[path]` module that is not a `.rs` file; a module that
+    is a symbolic link into the fixtures; `allow(r#unsafe_code)`; U+200E
+    glued to `unsafe`; `unsafe` in an indented doc example; `global_asm!`;
+    `dev` turned on from a normal dependency (in `softshelldb`, in
+    `tidepool`, and in `tidepool` through a feature that turns it on);
+    `rustflags` in `.cargo/config.toml`; a build script setting
+    `cfg(test)`; a ticked task missing from `features.jsonc`. Controls that
+    pass: `dev` turned on from a dev-dependency only, and a crate turning
+    on its own `dev` through a dev-dependency on itself. A `runner` in
+    `.cargo/config.toml` stops `cargo xtask` before it starts (exit 0, no
+    check run); started from outside the checkout with the pinned toolchain
+    (`cargo +1.99.1 run --manifest-path …`), `xtask` reports it (exit 1),
+    which is why M0.8's jobs must start it that way (`docs/04-quality.md`,
+    CI). A
+    second copy sharing the first's target directory, and so its `xtask`
+    binary, still checked itself; a copy with CRLF line endings in every
+    text file, as a Windows checkout has them, passed all of
+    `cargo xtask ci`.
+  - Note: three reviewers critiqued the design before the code, with
+    cargo 1.99.1 probes. Adopted: `--all-features` for the resolution (plain
+    `cargo metadata` leaves out optional dependencies, though `Cargo.lock`
+    has them); approvals from crates.io only; members outside the matrix
+    and path packages outside the workspace are dependencies too; the root
+    from the run-time `CARGO_MANIFEST_DIR` (a shared target directory
+    shares one binary between copies); a token-based `SAFETY:` rule that
+    survives rustfmt; `#[path]`, `include!`, target roots, editions and doc
+    examples checked so that the audit reads what the compiler reads;
+    features of every member, not only the two released ones; no stale
+    approval rule, which would fail an excluded `fuzz/` workspace.
+  - Note: an adversarial review (four reviewers, each finding checked by a
+    skeptic) confirmed 44 findings, and a second round on the fixes (two
+    reviewers and their skeptics) 10 more; all are fixed, with tests.
+    Among them: symbolic links and untracked nested repositories, which
+    the compiler follows and Git listings hide; invisible Unicode
+    whitespace and rustc's shebang rule in the lexer; doc examples in
+    blank-line gaps, four-backtick fences, `rust,foo` tags, indented blocks,
+    list items and `#[doc]` attributes; `global_asm!`; members dropping the
+    workspace lints; nested workspaces; every TOML spelling of `[source]`
+    and `[patch]` (a small key scanner); features turned on through other
+    features; build scripts setting a cfg through byte strings, `concat!`,
+    included files, a library they build-depend on, or a name rustc gives a
+    meaning (`test`); and a cargo configuration limited to the `xtask`
+    alias, since `[env]`, `runner` or `build.rustc` there could disable the
+    gate.
+  - Note: accepted by the user on 2026-11-07 (rules this task added; each
+    is stricter, so no control is weakened, but each is policy): approvals
+    only from crates.io; submodules and the cargo settings that redirect code
+    (`patch`, `replace`, `source`, `registries`, `paths`, `include`) are
+    not allowed at all; `.cargo/config.toml` holds only the `xtask` alias;
+    `#[path]` and `include!` only for relative `.rs` files, so no
+    `include!(concat!(env!("OUT_DIR"), …))` of generated code; every crate
+    on edition 2024; no `unsafe` in doc examples outside the two crates;
+    no checkbox list items in the roadmap that are not tasks.
+  - Note: `cargo xtask ci` on Linux with Rust 1.99.1 runs in seconds once
+    built; macOS and Windows run it from M0.8.
 
 - [ ] **M0.7 — core + xtask: fuzz smoke harness**
   - Depends: M0.6

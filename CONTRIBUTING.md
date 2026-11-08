@@ -91,8 +91,8 @@ up on:
 
 ## Checks
 
-Once they exist (the roadmap builds them in M0), run before every pull
-request:
+Run these before every pull request. `cargo xtask ci` exists; the others
+come with their roadmap tasks (`cargo xtask help` lists what there is):
 
 | Command | When |
 | :- | :- |

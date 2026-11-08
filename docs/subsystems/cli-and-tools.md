@@ -46,12 +46,19 @@ embedded only.
 ## `xtask`
 
 Build automation, run as `cargo xtask <command>`. It never uploads,
-publishes, signs with real credentials, reads secrets or calls the network.
+publishes, signs with real credentials, reads secrets or calls the network:
+every cargo command it runs is offline. It checks the workspace it is run
+in (`cargo run` tells it which), lists files with `git ls-files`, and reads
+`cargo metadata` with our own JSON parser. Exit status: 0 when every check
+passed, 1 when one found a problem or could not run, 2 for a command line
+not understood.
 
 | Command | Purpose | Spec |
 | :- | :- | :- |
-| `ci` | The full pull-request gate | `docs/04-quality.md` |
+| `ci` | The full pull-request gate: every check, even after one fails, then a summary | `docs/04-quality.md` |
+| `fmt`, `clippy`, `test` | `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test --workspace` | `docs/04-quality.md` |
 | `deps`, `layers`, `unsafe-audit`, `headers`, `workflows`, `release-no-dev`, `features` | Guardrails | `docs/04-quality.md` |
+| `help` | The commands and exit statuses | |
 | `fuzz-smoke [--secs N] [--target T]` | Mutation fuzzer over every decoder | `docs/04-quality.md` |
 | `crash [--minutes N] [--seed S] [--exhaustive]` | Process-kill and exhaustive crash-point runs | `docs/04-quality.md` |
 | `fixtures --new <format>` | Writes fixtures of the current format version | `docs/04-quality.md` |

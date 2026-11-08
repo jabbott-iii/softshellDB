@@ -216,19 +216,48 @@ them under `xtask crash --exhaustive`):
 
 | Command | Fails when |
 | :- | :- |
-| `cargo xtask ci` | Any of the checks below, plus `fmt --check`, `clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` |
-| `cargo xtask deps` | `Cargo.lock` has a package from outside the workspace not pinned in `xtask/deps-allowlist.txt` |
-| `cargo xtask layers` | A crate depends on a crate its row of the dependency matrix does not list, or a workspace crate has no row |
-| `cargo xtask unsafe-audit` | `unsafe` or `#![allow(unsafe_code)]` appears outside `softshell-sys` and `softshell-platform`, or an `unsafe` block lacks a `// SAFETY:` comment |
-| `cargo xtask headers` | A source file lacks the Apache-2.0 header, or has it altered or out of place (ADR-0004). Source files are Rust files (`*.rs`), scripts (`*.sh`, `*.ps1`, `*.py`), GitHub workflows (`.github/workflows/*.yml`) and the server's sample `softshell.jsonc`. Exempt: Markdown, Cargo manifests and other TOML files, other JSON and JSONC data (`docs/features.jsonc`), other `.github` files, `LICENSE`, `NOTICE`, format fixtures and fuzz corpora |
+| `cargo xtask ci` | Any of the checks below (`workflows` from M0.8), plus `fmt --check`, `clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`. It runs every check even after one fails, the quick ones first, and names the failed ones at the end |
+| `cargo xtask deps` | `Cargo.lock` has a package from outside the workspace that is not approved in `xtask/deps-allowlist.txt`: from crates.io, at exactly that name and version. That covers registry and git packages, approved names from anywhere but crates.io, optional dependencies, and path packages outside the workspace (vendored code, a `[patch]` to a local copy). Also: a member's manifest declares such a dependency, or an approved one not required at exactly its version (`= x.y.z`); a member is not a crate of the dependency matrix; a `Cargo.toml` that is not the root's or a member's, or a `Cargo.lock` but the root's; a submodule; `patch` or `replace` in `Cargo.toml`, or `source`, `patch`, `registries`, `paths` or `include` in `.cargo/config.toml`, however spelled (headers, dotted keys, inline tables): these are not allowed at all; an allowlist line that is malformed or cites an ADR not `Accepted` |
+| `cargo xtask layers` | A crate depends on a crate its row of the dependency matrix does not list (normal, dev and build dependencies, every platform; a dev-dependency on itself is no edge), a workspace crate has no row, or a row names no workspace crate |
+| `cargo xtask unsafe-audit` | Outside `softshell-sys` and `softshell-platform`: the `unsafe` keyword, in code or in a doc example (fenced or indented, in doc comments or `#[doc = "…"]`); a `doc` attribute that is not a plain string literal (`include_str!`); `global_asm!`, `naked_asm!` or `asm!`; or the `unsafe_code` lint named anywhere but in a `deny` or `forbid` attribute (so `allow`, `expect`, `warn`, `cfg_attr`, raw identifiers and macros are covered). Inside them: an `unsafe` block or `unsafe impl` with no comment starting `SAFETY:` and saying something, after the statement before it ends; an exported macro containing `unsafe`; or an extern block in `softshell-platform`, since raw declarations belong in `softshell-sys`. Everywhere: `#[path]` or `include!` naming anything but a relative `.rs` file inside the crate, `include` renamed, a macro that gives a module attributes from a fragment or calls a macro it is given; a symbolic link; a target whose root is not a `.rs` file inside its package; a crate or target not on edition 2024; a member without `[lints] workspace = true`, or a workspace whose `unsafe_code` is not `deny`. Files are tracked or untracked-but-not-ignored, and belong to the member whose directory holds them most closely. The lexer takes the characters Rust treats as whitespace, invisible ones included, as whitespace |
+| `cargo xtask headers` | A source file lacks the Apache-2.0 header, or has it altered or out of place (ADR-0004): it must be the first thing in the file, or follow a shebang (in a Rust file, a `#!` line that rustc takes as one). Source files are Rust files (`*.rs`), scripts (`*.sh`, `*.ps1`, `*.py`), GitHub workflows (`.github/workflows/*.yml`, `*.yaml`) and the server's sample `softshell.jsonc`. Exempt: Markdown, Cargo manifests and other TOML files, other JSON and JSONC data (`docs/features.jsonc`), other `.github` files, `LICENSE`, `NOTICE`, format fixtures and fuzz corpora. A byte-order mark is a finding; `\r\n` line endings are not |
 | `cargo xtask workflows` | A GitHub workflow uses an action not allowed, pins one by anything but a full commit SHA, or grants its token more than `contents: read` without a comment saying why |
-| `cargo xtask release-no-dev` | A release build of `softshelldb` or `softshell-cli` includes the `dev` or `fault-injection` feature |
-| `cargo xtask features` | A ticked roadmap task belongs to no feature in `docs/features.jsonc`, or a feature's `ticked` list disagrees with the roadmap |
+| `cargo xtask release-no-dev` | A release build of `softshelldb` or `softshell-cli` (each built alone, `-p`) includes the `dev` or `fault-injection` feature of a workspace crate; any member's normal or build dependencies turn one on (resolved by cargo with the member's own features off, so a feature that turns it on, or a crate whose `default` does, counts too); in a member with a build script or a library, a string (of any kind, a `concat!` of strings, or a file read with `include_str!` or `include_bytes!`) has a `rustc-cfg` directive setting anything but a plain name of our own (not a feature, not a name rustc gives a meaning such as `test`, `doc` or `target_…`); or `.cargo/config.toml` holds anything but the `xtask` alias as written (`rustflags`, `[env]`, `runner`, `build.rustc` and the rest act behind cargo's back), or a `.cargo/config` file exists |
+| `cargo xtask features` | A ticked `M` task of the roadmap belongs to no feature in `docs/features.jsonc`, a feature's `ticked` list disagrees with the roadmap, a feature lists a task the roadmap does not have or is missing a field, or a roadmap line looks like a task but does not parse |
+
+Every cargo command `xtask` runs is offline (`--offline` and
+`CARGO_NET_OFFLINE`), and those that resolve the graph are `--locked`; the
+`cargo xtask` alias itself is an ordinary `cargo run`. `deps`,
+`unsafe-audit`, `headers` and (for build scripts) `release-no-dev` list
+files with `git ls-files`, so they run in a Git checkout. Exit status: 0
+when every check passed, 1 when one found a problem or could not run, 2
+for a command line not understood. Cargo's own 101 means it could not build
+or resolve `xtask` itself, which includes a new dependency it cannot find
+offline, or that `xtask` panicked.
+
+Not covered, and left to review: code copied into an existing file; build
+scripts that download or generate code, or that build a `rustc-cfg`
+directive at run time (`.claude/rules/dependencies.md`); a
+crates.io package replaced by source replacement outside the repository's
+own `.cargo/config.toml` (a parent directory's, `$CARGO_HOME`'s), since the
+allowlist pins no checksum; `RUSTFLAGS` in a CI job's environment (the
+`workflows` check, M0.8); and platform `cfg` outside the two OS crates
+(ADR-0005).
 
 ## CI
 
 - GitHub Actions, one workflow (`.github/workflows/ci.yml`) on pull
-  requests and pushes to `main`:
+  requests and pushes to `main`. Every job starts `xtask` from a directory
+  outside the checkout, as `cargo +<pinned> --locked run --manifest-path
+  <checkout>/Cargo.toml --profile xtask -p xtask -- ci`, naming the
+  toolchain `rust-toolchain.toml` pins (`cargo +1.99.1 …`). Cargo reads
+  `.cargo/config.toml`, and rustup `rust-toolchain.toml`, from the current
+  directory, so the repository's own configuration cannot redirect how
+  `xtask` is built or run (a `runner` would stop it before it starts), and
+  `xtask` then checks that file.
+  Without `--locked`, `cargo run` would quietly rewrite a stale or edited
+  `Cargo.lock` before `deps` reads it. Once a third-party crate is
+  approved, `cargo fetch --locked` runs first, since `xtask` is offline.
   - Linux x86_64: `cargo xtask ci`, `cargo xtask fuzz-smoke --secs 30`,
     `cargo xtask crash --minutes 5`.
   - Linux aarch64, macOS aarch64, Windows x86_64: `cargo xtask ci`.
