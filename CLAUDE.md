@@ -15,8 +15,8 @@ coding agent. This section covers only what is specific to Claude Code.
 | `/add-os-binding <os> <api>` | Add a raw OS declaration to `softshell-sys` and wrap it safely in `softshell-platform` |
 | `/record-decision <title>` | Append an ADR to `docs/decisions.md` |
 
-**Path-scoped rules** in `.claude/rules` load automatically when you open
-matching files:
+**Rules** in `.claude/rules` load automatically: a rule with `paths` when
+you open a matching file, and a rule without them in every session:
 
 | Rule file | Applies to |
 | :- | :- |
@@ -26,6 +26,9 @@ matching files:
 | `data-models.md` | `expr`, `documents`, `graph`, `series`, `text`, `vector`, the facade |
 | `network.md` | `proto`, `server`, `client`, `cli` |
 | `dependencies.md` | Cargo manifests, `.cargo`, the toolchain file, `xtask` |
+| `documentation.md` | Every Markdown file, `docs/`, the issue form, and every Rust source (for its doc comments) |
+| `writing.md` | Every session: all text written for people to read |
+| `commits.md` | Every session: the commit messages handed to the user |
 
 **Permissions:**
 

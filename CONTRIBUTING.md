@@ -103,10 +103,40 @@ come with their roadmap tasks (`cargo xtask help` lists what there is):
 
 ## Commit messages
 
-Start the subject with the area it changes, in the imperative, under 72
-characters: `storage: sync the directory after renaming an SST`. The body
-says why, and names the roadmap task or issue. Coding agents never commit;
-they leave changes for a person to review and commit.
+Use [Conventional Commits](https://www.conventionalcommits.org/): a
+subject line of the form `<type>(<scope>): <summary>`, then a blank line
+and a body.
+
+- **Type:** `feat` for new behavior, `fix` for something broken, `docs`,
+  `refactor`, `perf`, `test`, `style` (formatting only), `build` (Cargo
+  manifests and the toolchain), `ci`, `chore` (repository upkeep), or
+  `revert`.
+- **Scope:** the crate's directory name, such as `core`, `storage`, or
+  `xtask`, and `claude` for `.claude/`. Leave it out when the change spans
+  several areas.
+- **Summary:** in the imperative ("add", not "added"), starting with a
+  lowercase letter, with no final period, and 72 characters or fewer,
+  prefix included. When the commit completes a roadmap task, end the
+  summary with the task's ID in parentheses.
+- **Body:** what changed and why, not how, and the roadmap task or issue
+  it belongs to, wrapped at 72 characters. End with `Closes #12` or
+  `Refs #12`, and add `BREAKING CHANGE: …` when the commit breaks a public
+  API, an on-disk format, or the wire protocol (a break also needs an ADR
+  in [`docs/decisions.md`](docs/decisions.md)).
+
+Each commit holds one logical change. A task's code, its tests, and the
+docs and roadmap tick it needs go in the same commit; unrelated work goes
+in separate ones. For example:
+
+```text
+fix(storage): sync the directory after renaming an SST
+
+A crash right after the rename could lose the directory entry, so
+the manifest would reference a file that is gone.
+```
+
+Coding agents never commit; they leave changes for a person to review and
+commit.
 
 ## Code of conduct
 

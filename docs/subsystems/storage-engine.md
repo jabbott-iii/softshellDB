@@ -52,7 +52,7 @@ whose sequence is ≤ the snapshot.
 4. **Publish**: the visible sequence advances, in commit order, past each
    commit whose durability condition holds (ADR-0011).
 5. If the memtable passed `memtable_bytes`, it becomes immutable, a new WAL
-   segment and memtable start, and the flush thread is signalled.
+   segment and memtable start, and the flush thread is signaled.
 
 ## Background errors
 
