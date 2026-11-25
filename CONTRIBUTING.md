@@ -24,8 +24,11 @@ working" in `AGENTS.md` says which).
 4. **Branch from `main` and make the change,** keeping to the one issue.
 5. **Check your work** (see [Checks](#checks)), then open a pull request
    that links the issue. The template asks what you ran.
-6. **CI must pass** on every runner. A maintainer reviews every pull
-   request (see `CODEOWNERS`).
+6. **The checks on GitHub must pass.** Today the only one is CodeQL.
+   Roadmap task M0.8 will add a CI workflow that runs `cargo xtask ci` on
+   Linux (x86_64 and aarch64), macOS (aarch64), and Windows (x86_64), and
+   from then on `cargo xtask ci` must pass on every runner. A maintainer
+   reviews every pull request (see `CODEOWNERS`).
 
 ### Roadmap tasks
 
@@ -89,6 +92,22 @@ up on:
   and the OS. On Windows, the MSVC build tools and the Windows SDK; on
   macOS, the Xcode command-line tools.
 
+## Where code and tests go
+
+- **Code** goes in the crate that the workspace map in `AGENTS.md` names
+  for it, and depends only on what that crate's row of the dependency
+  matrix allows.
+- **Unit tests** go in a `#[cfg(test)] mod tests` beside the code, and
+  **integration and model tests** in the crate's `tests/` folder.
+- **Property tests,** which check a property against many generated
+  inputs, use `softshell_core::testing::check`.
+- **Format fixtures** go in `tests/fixtures/<format>/v<N>/`, **fuzz seeds**
+  in `fuzz/corpus/<target>/`, and **benchmarks** in `bench/`.
+
+"Test layers" in [`docs/04-quality.md`](docs/04-quality.md) lists every
+kind of test, and [`.claude/rules/testing.md`](.claude/rules/testing.md)
+says how strict each one must be.
+
 ## Checks
 
 Run these before every pull request. `cargo xtask ci` exists; the others
@@ -101,11 +120,21 @@ come with their roadmap tasks (`cargo xtask help` lists what there is):
 | `cargo xtask crash --exhaustive` | A change to `storage`, `txn` or `platform` |
 | `cargo xtask bench <filter>` | Performance work (paste before and after) |
 
+`cargo xtask ci` prints each check's result, and a passing run ends with
+a line like this one. The count grows as roadmap tasks add checks.
+
+```text
+== ci: all 9 checks passed
+```
+
 ## Commit messages
 
 Use [Conventional Commits](https://www.conventionalcommits.org/): a
 subject line of the form `<type>(<scope>): <summary>`, then a blank line
-and a body.
+and a body. This section summarizes
+[`.claude/rules/commits.md`](.claude/rules/commits.md), which has the full
+rules. The text of messages, docs, and comments follows
+[`.claude/rules/writing.md`](.claude/rules/writing.md).
 
 - **Type:** `feat` for new behavior, `fix` for something broken, `docs`,
   `refactor`, `perf`, `test`, `style` (formatting only), `build` (Cargo
@@ -137,6 +166,30 @@ the manifest would reference a file that is gone.
 
 Coding agents never commit; they leave changes for a person to review and
 commit.
+
+## Reporting a problem
+
+Use the [issue form](https://github.com/jabbott-iii/softshellDB/issues/new/choose)
+for bugs, proposals, and questions. Report a security vulnerability
+privately, as [`SECURITY.md`](SECURITY.md) describes, never in a public
+issue, discussion, or pull request.
+
+## Coding agents
+
+Coding agents follow [`AGENTS.md`](AGENTS.md), like everyone else. Claude
+Code also loads [`CLAUDE.md`](CLAUDE.md), which lists the rules in
+[`.claude/rules/`](.claude/rules) and the skills in
+[`.claude/skills/`](.claude/skills). If an agent wrote part of your change,
+review all of it before you open the pull request.
+
+## License of contributions
+
+softshellDB is licensed under the Apache License, Version 2.0
+([`LICENSE`](LICENSE)). As section 5 of the license says, a contribution
+you submit is under the same license, with no further terms: there is no
+sign-off and no contributor license agreement. Every new source file starts
+with the license header that ADR-0004 (an Apache-2.0 header on every source
+file) specifies, and `cargo xtask headers` checks it.
 
 ## Code of conduct
 
