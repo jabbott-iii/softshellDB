@@ -8,10 +8,11 @@ argument-hint: "<crate-name> <what it would be used for>"
 
 Proposal: `$ARGUMENTS`
 
-The project rule: **build it ourselves unless building it is unreasonable**
-(ADR-0002). You are writing an evaluation for the user to decide on. You
-never approve it yourself, and you never change any `Cargo.toml` or
-`Cargo.lock`.
+The project rule: **build it ourselves unless a dependency is impossible to
+avoid** (ADR-0002, which starts the approved set empty, and ADR-0023, which
+sets the exception test). You are writing an evaluation for the user to
+decide on. You never approve it yourself, and you never change any
+`Cargo.toml` or `Cargo.lock`.
 
 ## Steps
 
@@ -33,14 +34,22 @@ never approve it yourself, and you never change any `Cargo.toml` or
    - The test strategy (vectors, property tests, fuzzing, crash tests).
    - Risks, especially security and data-loss risks.
    - Engineer-weeks, as a range, labeled as an estimate.
+   - The estimate tells the user how large the work is, so they can decide
+     whether to cut scope, change the design, or schedule it. It never
+     makes a crate approvable on its own (ADR-0023).
 
-4. **Apply the exception test.** For each criterion, say "met" or "not met",
-   with a reason:
-   1. Disproportionate cost: over 4 engineer-weeks, not central, no design
-      change avoids it.
-   2. Specialist correctness with severe failure modes (TLS, authenticated
-      encryption, password hashing).
-   3. Dev-only tooling with no reasonable equivalent, and never shipped.
+4. **Apply the exception test** in `docs/02-dependency-policy.md`. For each
+   reason, say "met" or "not met", with the evidence:
+   1. The platform requires it.
+   2. Only its owner can talk to the thing: a format, protocol, device, or
+      service with no public specification.
+   3. A law, a contract, or a certification names it.
+   4. A homemade version would be a security hole: cryptography, or a
+      protocol built on it such as TLS, that `std` and the OS don't
+      provide.
+
+   A dev-only tool passes the same test as a crate that ships. If no
+   reason is met, the recommendation is "build" or "reject".
 
 5. **Gather facts about the candidate.**
    - Use the web tools if available: crates.io, docs.rs, the repository,
@@ -92,11 +101,12 @@ never approve it yourself, and you never change any `Cargo.toml` or
 <components, specs, test strategy, risks, estimate range>
 
 ## Exception test
-| Criterion | Met? | Reason |
+| Reason | Met? | Evidence |
 | :- | :- | :- |
-| 1. Disproportionate cost | | |
-| 2. Specialist correctness | | |
-| 3. Dev-only, no equivalent | | |
+| 1. The platform requires it | | |
+| 2. Only its owner can talk to the thing | | |
+| 3. A law, contract, or certification names it | | |
+| 4. A homemade version would be a security hole | | |
 
 ## Candidate facts
 | Fact | Value | Verified? |

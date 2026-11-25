@@ -7,8 +7,8 @@ paths:
 
 # Rules for the storage engine and transactions
 
-A bug here loses data silently. Read `docs/subsystems/storage-engine.md`
-and `docs/subsystems/transactions.md` before changing anything.
+A bug here loses data silently. `AGENTS.md`, rule 5, states the durability
+rules every change keeps. These rules add the engine's details.
 
 - **The ordering rule.** For every file the engine creates:
   1. write it under `tmp/` (or append to the WAL or manifest);
@@ -18,18 +18,10 @@ and `docs/subsystems/transactions.md` before changing anything.
   5. only then reference it from a synced manifest record.
   A file is deleted only after a synced manifest record stops referencing it
   and no live `Version` holds it.
-- **Never overwrite.** Files are append-only. The WAL and manifest are
-  appended to; everything else is written once.
 - **Never acknowledge early.** Under `Sync::Always`, a commit is not visible
   to read transactions and `commit()` does not return until its WAL record
   is synced (ADR-0011). Write transactions read the last appended commit,
   synced or not (ADR-0010).
-- **Sync failures are fatal.** A failed `sync_data`, a failed WAL or
-  manifest write, or a failed SST write in a flush or compaction puts the
-  database in the background-error state, and stalled commits fail with
-  it. Never retry a sync and treat the retry's success as durability.
-- **Every file operation goes through `Vfs`.** No `std::fs` calls in
-  `storage` or `txn`; otherwise `FaultVfs` cannot crash them.
 - **Recovery is strict.** Only a torn tail of the last WAL segment (or of
   the manifest) may be truncated. Corruption anywhere else fails the open
   with the file and offset. Do not add a "skip bad records" mode without an
@@ -40,12 +32,6 @@ and `docs/subsystems/transactions.md` before changing anything.
   hold a lock across file I/O unless the spec already does (the WAL append
   under the commit queue). Never hold the writer lock while waiting for a
   sync.
-- **No `unsafe`.** Not even for the memtable or the cache (ADR-0005,
-  ADR-0009).
-- **Tests a change must keep or extend:** the model test, the crash-point
-  test (`cargo xtask crash --exhaustive` for changes to the write, flush,
-  compaction or recovery paths), the corruption tests, and, in `txn`, the
-  isolation history test. A new file operation needs a crash point covering
-  it. Never weaken an invariant check to make a test pass.
-- **In the final message,** answer the "Review checklist for storage
-  changes" in `docs/04-quality.md`.
+- **Tests a change must keep or extend,** besides the crash-point test:
+  the model test, the corruption tests, and, in `txn`, the isolation
+  history test.

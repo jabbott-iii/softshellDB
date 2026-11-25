@@ -649,3 +649,120 @@ changed.
   aarch64, and every reader of extended JSON would need the extra form.
 - **Revisit when:** a user needs NaN payloads stored (for example
   NaN-boxed data imported from another system).
+
+## ADR-0023 — Dependency exceptions follow Doctrina's four reasons
+
+- **Status:** Accepted (user decision, 2026-11-24)
+- **Date:** 2026-11-24
+- **Context:**
+  - ADR-0002 (zero third-party crates) sends every exception through the
+    test in `docs/02-dependency-policy.md`. Under that test, an agent may
+    propose a crate when at least one of three criteria holds:
+    1. Disproportionate cost: building it would take more than 4
+       engineer-weeks, the capability isn't central to the database, and
+       no design change avoids it.
+    2. Specialist correctness with severe failure modes, such as TLS,
+       authenticated encryption, and password hashing.
+    3. Dev-only tooling that never ships and has no reasonable
+       equivalent, such as coverage-guided fuzzing (a fuzzer that steers
+       its inputs toward code they haven't reached yet).
+  - On 2026-11-24 the repository adopted `.claude/rules/dependencies.md`
+    from Doctrina (the user's repository of portable agent rules and
+    skills), at commit `3afa240`. It applies in every Claude Code session
+    and allows a third-party dependency only when it is impossible to
+    avoid, for one of four reasons:
+    1. The platform requires it.
+    2. Only its owner can talk to the thing: a file format, protocol,
+       device, or service with no public specification.
+    3. A law, a contract, or a certification names it.
+    4. A homemade version would be a security hole: cryptography, and the
+       protocols built on it such as TLS, when the platform doesn't
+       provide them.
+  - The same rule says that time saved and the size of the code a crate
+    would replace are never reasons on their own. It counts test and CI
+    tools like any other dependency.
+  - The two tests disagree on criteria 1 and 3. A copied Doctrina rule
+    may be changed here only in its "Project details" section
+    (`CLAUDE.md`), so the copy can't carry softshellDB's criteria.
+  - Both tests require the user's approval for every exception. Today the
+    disagreement decides only what an agent may propose, not what gets
+    added.
+- **Decision:**
+  - The exception test in `docs/02-dependency-policy.md` becomes the four
+    reasons above. Criteria 1 and 3 are removed. Criterion 2 becomes
+    reason 4, which covers cryptography and the protocols built on it;
+    every register row that cites criterion 2 is cryptographic.
+  - The rule at the top of the policy becomes "Build it ourselves unless
+    a dependency is impossible to avoid."
+  - These stay as they are: the empty approved set (ADR-0002), trying a
+    design change first, the evaluation file, the user's approval, exact
+    pins in `xtask/deps-allowlist.txt`, one module of ours around each
+    approved crate, a cargo feature for a crate that only the server or
+    CLI needs, and `cargo xtask deps`.
+  - When building something ourselves would be a large piece of work, the
+    evaluation says so with an estimate, and the user decides how to go
+    on: cut scope, change the design, or schedule the work. The size of
+    the work never makes a crate approvable.
+  - In the build-vs-buy register:
+    - Row 32 (coverage-guided fuzzing with `cargo fuzz` and
+      `libfuzzer-sys`) becomes `Rejected`, because no reason covers it,
+      and M12.2 no longer decides it.
+    - Rows 12 and 14 (password hashing, encryption at rest) cite reason 4
+      instead of criterion 2.
+    - A fallback crate can be evaluated only where one of the four
+      reasons could apply: today rows 11–14 (SHA-256, password hashing,
+      TLS, encryption at rest). In the other 29 rows that name a fallback
+      crate, a switch trigger that fires leads to optimizing our own
+      version or changing the design. The paragraph above the register
+      says so.
+  - `/evaluate-dependency` tests the four reasons in its step 4 and its
+    template, and keeps the build-it-ourselves estimate for the user.
+  - ADR-0019's in-house SHA-256 stays. Reason 4 tells agents to treat
+    homemade cryptography as impossible to write, but SHA-256 is used
+    only to hash random 256-bit API tokens, it has no branches or table
+    lookups that depend on the bytes it hashes, and the NIST vectors
+    check its results. Row 11's trigger still applies: any second use of
+    SHA-256, or any other cryptographic primitive, goes through reason 4.
+  - ADR-0002 stays `Accepted` and isn't superseded. Its decision points
+    to the policy's test, which this ADR changes, and the exceptions it
+    expects (TLS, authenticated encryption, password hashing) all fall
+    under reason 4.
+- **Consequences:**
+  - The policy and the rule agents load in every session state one test.
+  - The policy gets stricter. No crate can be proposed to save
+    engineering time or as a dev-only tool, so every large piece of work
+    stays in-house unless the user cuts scope or changes the design.
+  - Fuzzing stays with our own mutation fuzzer (`cargo xtask fuzz-smoke`,
+    planned for M0.7). It has no coverage feedback, so it can miss bugs
+    behind conditions that random mutations rarely satisfy.
+  - Performance triggers such as "SLZ decode below 500 MB/s" (row 8) or
+    "memtable inserts above 30% of commit CPU" (row 15) call for an
+    optimization or a design change, never for the named crate.
+  - Once this ADR is accepted, these change, each citing it:
+    - `docs/02-dependency-policy.md`: the rule, the exception test, the
+      paragraph above the register, and rows 12, 14, and 32.
+    - `.claude/skills/evaluate-dependency/SKILL.md`: step 4 and the
+      template.
+    - `docs/roadmap.md`: M12.2's `Do` and `Accept` lines, and the
+      encryption-at-rest row of the backlog.
+    - `README.md`: "unless an evaluation shows building is unreasonable".
+- **Alternatives considered:**
+  - Keep the three criteria beside the Doctrina copy: two tests that
+    disagree, with the stricter one loaded in every session, so agents
+    follow one test while the policy states another.
+  - Remove the Doctrina `dependencies.md` and keep only the path-scoped
+    `cargo-manifests.md`: the policy stays as it is, but the dependency
+    rule is no longer shared with Doctrina, and only `AGENTS.md`'s rule 1
+    covers dependencies in a session that opens no Cargo manifest or
+    `xtask` file.
+  - Add a "Project details" value to Doctrina's rule for extra reasons a
+    repository allows, then copy it here: keeps criteria 1 and 3 with one
+    test, but loosens the shared rule in every repository that fills the
+    value in, and the change is made in Doctrina, not here.
+  - Keep criterion 3 alone, for dev tools that never ship: needs the same
+    change to Doctrina, for one register row (32) that nothing needs
+    before M12.2.
+- **Revisit when:** a piece of work the roadmap requires is estimated at
+  more than 4 engineer-weeks and the user accepts no scope cut or design
+  change for it, or Doctrina's `dependencies.md` changes its list of
+  reasons.

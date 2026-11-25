@@ -78,8 +78,8 @@ This is a sketch from the design; the API will change as it is built.
 - **Hostile input never crashes it.** Every decoder is bounded and fuzzed.
 - **One engine, many models.** Each data model is a library over the same
   transactions; the facade glues them together.
-- **Build first.** No third-party crates unless an evaluation shows building
-  is unreasonable and the maintainer approves it
+- **Build first.** No third-party crates unless one is impossible to avoid
+  (a cryptography library, for example) and the maintainer approves it
   ([dependency policy](docs/02-dependency-policy.md)).
 
 ## Platforms

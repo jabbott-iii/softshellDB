@@ -1163,13 +1163,15 @@ transaction, and Tidepool.
   - Accept: a clean 300-s run of every target, recorded in a task note.
   - Verify: `cargo xtask fuzz-smoke --secs 300`
 
-- [ ] **M12.2 — soak, and the coverage-guided fuzzing decision**
+- [ ] **M12.2 — soak**
   - Depends: M11.5
-  - Do: `cargo xtask soak`; a 1-hour soak with Tidepool's seeded workload;
-    present register item 32 for a decision.
+  - Do: `cargo xtask soak`; a 1-hour soak with Tidepool's seeded workload.
   - Accept: no memory growth beyond configured caches, no file-handle leak,
-    compaction keeps up; register item 32 decided.
+    compaction keeps up.
   - Verify: `cargo xtask soak --minutes 60`
+  - Note: this task no longer decides register item 32 (coverage-guided
+    fuzzing). ADR-0023 (dependency exceptions follow Doctrina's four
+    reasons) rejected it, because no reason covers a dev-only tool.
 
 - [ ] **M12.3 — the per-OS release checklist**
   - Depends: M12.1, M12.2
@@ -1232,7 +1234,7 @@ transaction, and Tidepool.
 | Filtered HNSW (filter-aware traversal) | Post-filtering exhausts `max_ef` on selective filters |
 | Vector quantization (SQ8, PQ) | Vector storage or cache size beyond budget |
 | Geospatial indexes | User request (needs an ADR; non-goal today) |
-| Encryption at rest | User requirement (register item 14, criterion 2) |
+| Encryption at rest | User requirement (register item 14, reason 4 of the exception test) |
 | Graceful signal handling in the server | Operators need clean shutdown on `SIGTERM` |
 | Unix domain sockets for the server | Local deployments want filesystem permissions instead of tokens |
 | HTTP/JSON API and a metrics endpoint | Integration with tools that cannot speak the binary protocol |

@@ -2,10 +2,11 @@
 
 ## The rule
 
-> **Build it ourselves unless building it is unreasonable.** A third-party
-> crate is used only when it passes the exception test below, the user has
-> approved it, and it is recorded in the register in this document
-> (ADR-0002).
+> **Build it ourselves unless a dependency is impossible to avoid.** A
+> third-party crate is used only when it passes the exception test below,
+> the user has approved it, and it is recorded in the register in this
+> document (ADR-0002, which starts the approved set empty, and ADR-0023,
+> which sets the exception test).
 
 The current approved set of third-party crates is **empty**. `Cargo.lock`
 must contain only workspace packages. `cargo xtask deps` fails otherwise.
@@ -46,20 +47,33 @@ disappears**:
 - avoid the need (API tokens of 256 random bits need no password KDF)
 - use what `std` already has (`File::lock`, `sync_data`, `read_at`)
 
-If the need remains, a crate may be proposed only when at least one of these
-is true:
+If the need remains, a crate may be proposed only when it is impossible to
+avoid, for at least one of these reasons. They are the four reasons in
+`.claude/rules/dependencies.md`, which agents load in every session
+(ADR-0023: dependency exceptions follow those four reasons).
 
-1. **Disproportionate cost.** Building it is estimated above 4 engineer-weeks,
-   the capability is not central to the database, and no design change
-   avoids it.
-2. **Specialist correctness with severe failure modes.** The domain demands
-   expert knowledge, bugs are hard to detect by testing, and the consequences
-   are severe. Examples: TLS, authenticated encryption, password hashing.
-3. **Dev-only tooling with no reasonable equivalent.** It never ships in a
-   released binary or library, and our own version would be far weaker.
-   Example: coverage-guided fuzzing.
+1. **The platform requires it.** softshellDB can't build, run, or ship on
+   its targets (`docs/03-platforms.md`) without it.
+2. **Only its owner can talk to the thing.** A file format, protocol,
+   device, or service has no public specification, so only its owner's
+   library can read it, speak it, or drive it.
+3. **A law, a contract, or a certification names it.**
+4. **A homemade version would be a security hole.** This covers
+   cryptography, such as ciphers, authenticated encryption, password
+   hashing, and random numbers for keys, and the protocols built on it,
+   such as TLS, when `std` and the OS don't provide them. Writing these is
+   possible, but homemade versions are a well-known source of
+   vulnerabilities. The in-house SHA-256 is the one piece of cryptography
+   we write ourselves: it only hashes random API tokens (ADR-0019), and
+   ADR-0023 says why it stays.
 
-"It's popular" and "it would be faster to start" are not reasons.
+None of these is a reason on its own: the crate is popular, it would be
+faster to start, the code it replaces would be long, or it is small, well
+maintained, or published by a large company. When building something
+ourselves would be a large piece of work, the evaluation says so, with an
+estimate, and the user decides how to go on: cut scope, change the design,
+or schedule the work. Dev-only tools, such as test, fuzzing, coverage, and
+benchmark tools, pass the same test as a crate that ships.
 
 ## Exception process
 
@@ -100,8 +114,13 @@ is true:
 - **Approved:** the user said yes, ADR recorded.
 - **Rejected.**
 
-The **fallback** column is a crate we would evaluate first if the **switch
-trigger** fires. It is not approved.
+The **fallback** column names the crate we would evaluate first if the
+**switch trigger** fires. None is approved. Only rows 11–14 (SHA-256,
+password hashing, TLS, encryption at rest) can lead to an evaluation,
+because they are cryptography, which reason 4 covers. In every other row,
+none of the four reasons applies (ADR-0023), so a switch trigger that fires
+calls for optimizing our own version or changing the design, and the
+fallback is listed only as the common alternative.
 
 | # | Capability | Status | Our approach | Fallback (not approved) | Switch trigger |
 | :- | :- | :- | :- | :- | :- |
@@ -116,9 +135,9 @@ trigger** fires. It is not approved.
 | 9 | CRC32C checksums | Build | Table-driven, slicing-by-8, in `softshell-core` | `crc32c` (hardware) | Checksumming above 5% of read-path CPU in a profile; first consider hardware CRC in `softshell-platform` (ADR) |
 | 10 | Non-cryptographic hashing | Build | FNV-1a 64 (stable on disk), own fast hasher for in-memory maps | `ahash`, `xxhash-rust` | Not expected |
 | 11 | SHA-256 | Build | FIPS 180-4 in `softshell-core`, NIST CAVP vectors; used only to hash high-entropy API tokens (ADR-0019) | `sha2` | Any second use of SHA-256, or any need for another cryptographic primitive |
-| 12 | Password hashing / KDF | Build (not needed) | Avoided: only random API tokens, no passwords (ADR-0019) | `argon2` | A requirement for user passwords: criterion 2 |
+| 12 | Password hashing / KDF | Build (not needed) | Avoided: only random API tokens, no passwords (ADR-0019) | `argon2` | A requirement for user passwords: reason 4 |
 | 13 | TLS for the server | **Open** | Evaluation in M11.6. Until approved, the server binds loopback only (ADR-0018) | `rustls` with a crypto provider | M11.6 |
-| 14 | Encryption at rest (AEAD) | **Open** | Not scheduled; backlog | `chacha20poly1305`, `aes-gcm`, `aws-lc-rs` | A user requirement for encrypted database files: criterion 2 |
+| 14 | Encryption at rest (AEAD) | **Open** | Not scheduled; backlog | `chacha20poly1305`, `aes-gcm`, `aws-lc-rs` | A user requirement for encrypted database files: reason 4 |
 | 15 | Memtable structure | Build | Persistent copy-on-write B-tree in safe Rust (ADR-0009) | `crossbeam-skiplist` | Memtable inserts above 30% of commit CPU in a profile |
 | 16 | Block cache | Build | Sharded LRU with byte accounting | `moka` | Not expected |
 | 17 | Bloom filters | Build | Own, 10 bits per key, double hashing | — | — |
@@ -136,7 +155,7 @@ trigger** fires. It is not approved.
 | 29 | Property testing | Build | Seeded harness in `softshell_core::testing` | `proptest` | Not expected |
 | 30 | Benchmarking | Build | `softshell-bench`: warm-up, N samples, median/p95/p99, JSON baselines | `criterion` | Not expected |
 | 31 | Fuzzing (stable, CI) | Build | Mutation smoke fuzzer in `xtask` | — | — |
-| 32 | Coverage-guided fuzzing (optional, nightly) | **Open** | Decide in M12.2 (criterion 3) | `cargo fuzz` with `libfuzzer-sys`, in an excluded `fuzz/` workspace, never linked into a release | M12.2 |
+| 32 | Coverage-guided fuzzing (optional, nightly) | Rejected | No reason covers a dev-only tool (ADR-0023); fuzzing uses our own mutation fuzzer (row 31) | `cargo fuzz` with `libfuzzer-sys` | — |
 | 33 | Timestamps and RFC 3339 | Build | Civil-date conversion in `softshell-core::civil` | `chrono`, `time` | Time-zone database support becomes a requirement |
 | 34 | Random numbers | Build | PCG32, seedable, deterministic | `rand` | Not expected |
 | 35 | Unique ids | Build | Time-ordered 128-bit `Id` (48-bit milliseconds + 80 random bits) | `uuid`, `ulid` | Not expected |
@@ -162,7 +181,7 @@ trigger** fires. It is not approved.
   approval honest.
 - **`cargo xtask layers`** checks the workspace dependency graph against the
   matrix in `docs/01-architecture.md`.
-- **Path-scoped rule** `.claude/rules/dependencies.md` loads whenever an
-  agent opens a Cargo manifest.
+- **Agent rules:** `.claude/rules/dependencies.md` applies in every Claude
+  Code session.
 - **Claude Code permissions** ask before `cargo add`, `cargo update` and
   `cargo install`.

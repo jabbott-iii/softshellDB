@@ -237,7 +237,7 @@ offline, or that `xtask` panicked.
 
 Not covered, and left to review: code copied into an existing file; build
 scripts that download or generate code, or that build a `rustc-cfg`
-directive at run time (`.claude/rules/dependencies.md`); a
+directive at run time (`.claude/rules/cargo-manifests.md`); a
 crates.io package replaced by source replacement outside the repository's
 own `.cargo/config.toml` (a parent directory's, `$CARGO_HOME`'s), since the
 allowlist pins no checksum; `RUSTFLAGS` in a CI job's environment (the

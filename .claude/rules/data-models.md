@@ -11,14 +11,9 @@ paths:
 
 # Rules for the data models and the facade
 
-- **Models are independent libraries** (ADR-0012). `documents`, `graph`,
-  `series`, `text` and `vector` depend on `txn`, `codec`, `core` (and
-  `expr` where the matrix allows) and never on each other. Glue between
-  models belongs in the facade.
 - **Stay in your keyspace.** Build every key through the model's `Keyspace`
-  handle, from `keycode` or the fixed-width big-endian fields its spec
-  defines. Never concatenate unencoded values into keys, and never read or
-  write another model's keyspace.
+  handle, as the "Keys" convention in `AGENTS.md` describes, and never read
+  or write another model's keyspace.
 - **One transaction.** Every index, posting, adjacency key, counter and
   statistic a write affects is updated in the same transaction as the write.
   No "fix it up later" paths, except the maintenance jobs the specs define
@@ -37,6 +32,3 @@ paths:
   - the bench that measures its budget in `docs/00-overview.md`.
 - **The catalog** is the only place names map to keyspace ids. A catalog
   entry change is an on-disk format change (`.claude/rules/on-disk-formats.md`).
-- **Public API:** additions are fine within a task; removals and renames
-  need the task's authorization and an ADR. The server uses only the
-  facade's public API (ADR-0003): never add a private hook for it.

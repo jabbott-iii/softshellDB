@@ -37,5 +37,3 @@ still bounded (ADR-0018, ADR-0019).
   paths, other users' data, or stack traces.
 - **Protocol changes** follow `/change-on-disk-format` (the protocol is a
   format): additive changes keep the version; anything else bumps it.
-- **No async runtime and no TLS crate** unless the dependency policy
-  approves one.

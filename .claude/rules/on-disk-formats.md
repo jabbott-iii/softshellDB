@@ -14,17 +14,12 @@ paths:
 Every byte we read may be malformed or hostile: a corrupted disk, a
 database file from someone else, a malicious client.
 
-- **Never panic on input.**
+- **Never panic on input.** "Untrusted input and arithmetic" in `rust.md`
+  in this folder has the general rules. In this project:
   - Decoder modules carry
     `#![deny(clippy::indexing_slicing, clippy::arithmetic_side_effects)]`.
   - Read through `softshell_core::bytes::ByteReader`; no slicing with
     input-derived offsets.
-  - No `unwrap`/`expect` on input-derived values.
-  - Lengths and counts use `checked_add`/`checked_mul` and return an error
-    on overflow.
-- **Check before allocating.** Compare every declared size against
-  `Limits` and against the remaining input before `Vec::with_capacity`,
-  `resize` or `String` allocation.
 - **Bound recursion** (JSON, SDOC, query documents, keycode arrays and
   objects) by `Limits::max_depth`. Exceeding it is an error, never a stack
   overflow.

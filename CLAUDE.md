@@ -14,6 +14,15 @@ coding agent. This section covers only what is specific to Claude Code.
 | `/change-on-disk-format <format> <change>` | Change the WAL, SST, manifest, SDOC, keycode, SLZ, series chunk, catalog or protocol format safely: version bump, readers, fixtures, fuzz corpus |
 | `/add-os-binding <os> <api>` | Add a raw OS declaration to `softshell-sys` and wrap it safely in `softshell-platform` |
 | `/record-decision <title>` | Append an ADR to `docs/decisions.md` |
+| `/fix-doc-drift [scope]` | Find statements in the docs that no longer match the code or the records, and correct them |
+| `/draw-diagrams [file or view]` | Draw or rebuild architecture diagrams of the project as Mermaid in Markdown |
+| `/phase-gates [plan \| phase ID]` | Group roadmap tasks into phases with checkable gates, or check a phase's gate |
+| `/sweep-code [scope] [bugs \| dead code]` | Find and prove bugs and dead code, then fix the ones you approve, with regression tests |
+| `/simplify-code [scope]` | Simplify the long or convoluted code you approve, keeping every behavior |
+| `/security-sweep [scope]` | Find and prove security vulnerabilities, then patch the ones you approve |
+| `/set-up-github [pieces]` | Write or merge the files GitHub reads: CodeQL, Dependabot, `SECURITY.md`, `CONTRIBUTING.md`, templates, `CODEOWNERS`, `.gitignore` |
+| `/build-language-packs [languages] [scope]` | Translate user-facing text into nine languages, as draft language packs for review |
+| `/build-course <description>` | Build a course from a description (it relies on `teaching-materials.md`, which this repository hasn't adopted) |
 
 **Rules** in `.claude/rules` load automatically: a rule with `paths` when
 you open a matching file, and a rule without them in every session:
@@ -25,10 +34,22 @@ you open a matching file, and a rule without them in every session:
 | `on-disk-formats.md` | `codec`, `storage`, `proto`, the facade's catalog, `tests/fixtures`, `fuzz` |
 | `data-models.md` | `expr`, `documents`, `graph`, `series`, `text`, `vector`, the facade |
 | `network.md` | `proto`, `server`, `client`, `cli` |
-| `dependencies.md` | Cargo manifests, `.cargo`, the toolchain file, `xtask` |
-| `documentation.md` | Every Markdown file, `docs/`, the issue form, and every Rust source (for its doc comments) |
+| `cargo-manifests.md` | Cargo manifests and build scripts |
+| `rust.md` | Every Rust source, Cargo manifest, `Cargo.lock`, and toolchain or lint file |
+| `roadmap-and-docs.md` | `docs/`, `AGENTS.md`, `CONTRIBUTING.md`, `README.md` |
 | `writing.md` | Every session: all text written for people to read |
-| `commits.md` | Every session: the commit messages handed to the user |
+| `commits.md` | Every session: commit messages, how much Git Claude may run, and pull requests |
+| `dependencies.md` | Every session: anything the project uses that it didn't write |
+| `testing.md` | Every session: tests, fixtures, coverage, and the checks CI runs |
+
+**Shared with Doctrina:** `commits.md`, `dependencies.md`,
+`roadmap-and-docs.md`, `rust.md`, `testing.md`, and `writing.md`, and every
+skill above except `/evaluate-dependency`, `/change-on-disk-format`,
+`/add-os-binding`, and `/record-decision`, are copies from
+[Doctrina](https://github.com/jabbott-iii/Doctrina) at commit `3afa240`.
+Change a copied rule here only in its "Project details" section, and a
+copied skill not at all. Change their general text in Doctrina, then copy
+it over.
 
 **Permissions:**
 
