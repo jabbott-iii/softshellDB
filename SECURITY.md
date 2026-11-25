@@ -17,7 +17,7 @@ maintenance branches before 1.0 (`docs/05-release.md`).
 Report vulnerabilities privately, through GitHub's private vulnerability
 reporting:
 
-1. On the repository's **Security** tab, select **Report a
+1. On the repository's **Security and quality** tab, select **Report a
    vulnerability**, or go straight to
    <https://github.com/jabbott-iii/softshellDB/security/advisories/new>.
 2. Fill in the form. Only you, the maintainer, and the collaborators the
@@ -40,12 +40,15 @@ Include as much of this as you can:
 Remove tokens, user names, paths and other private data from anything you
 attach.
 
+Test only on your own systems and data, never against a database or server
+that someone else runs.
+
 ## What to expect
 
 softshellDB has a single maintainer, so responses are best effort. A report
 goes through these steps:
 
-1. **Acknowledgement** in the private report.
+1. **Acknowledgment** in the private report.
 2. **Assessment:** whether it is a vulnerability, which commits it affects,
    and how severe it is.
 3. **Fix:** prepared privately when needed, then landed on `main` and
