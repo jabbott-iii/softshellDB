@@ -1,11 +1,25 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
+# Dependabot version updates (docs/02-dependency-policy.md).
+#
+# Only the GitHub Actions in .github/workflows/ are updated. Cargo is left
+# out because Cargo.lock holds only workspace crates (ADR-0002): add a
+# "cargo" entry when the first third-party crate is approved. The Rust
+# toolchain is left out because raising it also raises `rust-version` in
+# Cargo.toml, and is a task of its own (docs/05-release.md).
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "weekly"
+    # Wait a week after each release, so a broken or malicious one has
+    # time to be found and pulled. Security updates don't wait.
+    cooldown:
+      default-days: 7
+    # Minor and patch updates share one pull request; each major update
+    # comes on its own, because it may change how the action behaves.
+    groups:
+      actions-minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "ci"
